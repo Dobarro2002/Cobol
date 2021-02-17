@@ -1,0 +1,259 @@
+
+      ******************************************************************
+      * NOM. DESCR: ESTE PROGRAMA PROCESA EL FICH.SECUENCIAL -CUENTO-  *
+      * OBJETIVE:   ESTE PROGRAMA LEE EL FICHERO DE CUENTO Y POR CADA  *
+      *             REGISTRO LEIDO, MUESTRA LOS VALORES DE SUS CAM-    *
+      *             POS: ISBN,TITULO,EDITORIAL,PRECIO,CODEDI,UNID-VEND *
+      * TYPE:       BATCH REPORT                                       *
+      * INPUTS:     DATOS DEL SISTEMA (FECHA Y HORA)                   *
+      *             DATOS DE SYSIN (TITULO DEL LISTADO)                *
+      *             FICHERO DE ENTRADA SECUENCIAL -CUENTO.:            *
+      *                   T9716.T971634.ZENT207.CUENTO                 *
+      * OUTPUTS:    REPORTS-SPOOL-                                     *
+      ******************************************************************
+
+      ******************************************************************
+      *                    IDENTIFICATION DIVISION                     *
+      ******************************************************************
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. PB34C207.
+       AUTHOR. USUARIO (IRIA).
+       DATE-WRITTEN. ENERO, 2021.
+       DATE-COMPILED.
+
+      ******************************************************************
+      *                    ENVIRONMENT DIVISION                        *
+      ******************************************************************
+       ENVIRONMENT DIVISION.
+       CONFIGURATION SECTION.
+
+       SOURCE-COMPUTER. IBM-390.
+       OBJECT-COMPUTER. IBM-390.
+
+       SPECIAL-NAMES.
+           DECIMAL-POINT IS COMMA.
+
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+
+      ******************************************************************
+      *                    INPUT FILE                                  *
+      *----------------------------------------------------------------*
+      * FICHERO DE CUENTO                                              *
+      ******************************************************************
+           SELECT CUENTO
+               ASSIGN TO FICHENTR
+               ORGANIZATION IS SEQUENTIAL
+               ACCESS MODE IS SEQUENTIAL
+               FILE STATUS IS FS-CUENTO.
+
+      ******************************************************************
+      *                       DATA DIVISION                            *
+      ******************************************************************
+       DATA DIVISION.
+       FILE SECTION.
+       FD  CUENTO
+           LABEL RECORDS ARE STANDARD
+           RECORDING MODE IS F
+           BLOCK CONTAINS 0 RECORDS
+           RECORD CONTAINS 60 CHARACTERS
+           DATA RECORD IS REG-CUENTO.
+       01  REG-CUENTO                     PIC X(60).
+
+      ******************************************************************
+      *                   WORKING-STORAGE SECTION                      *
+      ******************************************************************
+       WORKING-STORAGE SECTION.
+       01  WORK-AREA.
+
+      ******************************************************************
+      *                   RECORD LAYOUT                                *
+      *----------------------------------------------------------------*
+      *  DESCRIPCION DEL REGISTRO DEL FICHERO DE CUENTO.    LONG.:60   *
+      ******************************************************************
+           05  WS-IN-REG-CUENTO.
+               10  WS-IN-ISBN              PIC X(10)   VALUE SPACES.
+               10  WS-IN-TITULO            PIC X(20)   VALUE SPACES.
+               10  WS-IN-EDITORIAL         PIC X(13)   VALUE SPACES.
+               10  WS-IN-PRECIO            PIC 9(4)    VALUE ZEROES.
+               10  FILLER                  PIC X       VALUE SPACES.
+               10  WS-IN-CODEDI            PIC 9(2)    VALUE ZEROES.
+               10  FILLER                  PIC X       VALUE SPACES.
+               10  WS-IN-UNID-VENDIDAS     PIC 9(3)    VALUE ZEROES.
+               10  FILLER                  PIC X(6)    VALUE SPACES.
+
+      ******************************************************************
+      *                 FILE STATUS                                    *
+      ******************************************************************
+           05  FS-CUENTO                    PIC 99      VALUE ZEROS.
+
+      ******************************************************************
+      *                 FLAGS AND SWITCHES                             *
+      ******************************************************************
+           05  END-OF-SWITCH               PIC X       VALUE 'N'.
+               88  END-OF-FILE                         VALUE 'Y'.
+               88  NOT-END-OF-FILE                     VALUE 'N'.
+
+           05  END-FILE-SWITCH             PIC X       VALUE 'N'.
+               88  EMPTY-FILE                          VALUE 'Y'.
+
+           05  ERRORES-SWITCH              PIC X       VALUE 'N'.
+               88 ERRORES                              VALUE 'Y'.
+
+      ******************************************************************
+      *                 COUNTERS AND ACCUMULATORS                      *
+      ******************************************************************
+           05  CTR-LEIDOS                  PIC 9(9)    VALUE ZEROES.
+
+      ******************************************************************
+      *                 CONSTANTS AND LITERALS                         *
+      ******************************************************************
+           05  CTE-1                       PIC 9       VALUE 1.
+           05  CTE-1001                    PIC 9(4)    VALUE 1001.
+           05  CTE-PROGRAMA                PIC X(8)    VALUE 'PB34C207'.
+
+      ******************************************************************
+      *                 SCRATCH AREA                                   *
+      ******************************************************************
+           05  AUX-SYSIN.
+               10 AUX-TITULO               PIC X(40)    VALUE SPACES.
+               10 FILLER                   PIC X(40)    VALUE SPACES.
+
+           05  AUX-FECHA.
+               10  AUX-ANYO                PIC 9(4)     VALUE ZERO.
+               10  AUX-MES                 PIC 9(2)     VALUE ZERO.
+               10  AUX-DIA                 PIC 9(2)     VALUE ZERO.
+
+           05  AUX-HOR.
+               10 AUX-HORA                 PIC 9(2)     VALUE ZERO.
+               10 AUX-MINUTO               PIC 9(2)     VALUE ZERO.
+               10 AUX-SEGUNDO              PIC 9(2)     VALUE ZERO.
+               10 AUX-MILI                 PIC 9(2)     VALUE ZERO.
+
+      ******************************************************************
+      *                       PROCEDURE DIVISION                       *
+      ******************************************************************
+       PROCEDURE DIVISION.
+
+      ******************************************************************
+      *                       1000-MAINLINE                            *
+      *----------------------------------------------------------------*
+      * ESTE PARRAFO CONTROLA LA ESTRUCTURA DEL PROCESO DEL PROGRAMA   *
+      ******************************************************************
+       1000-MAINLINE.
+           PERFORM 2000-HOUSEKEEPING
+              THRU 2000-HOUSEKEEPING-EXIT.
+
+           PERFORM 3000-PROCESS
+              THRU 3000-PROCESS-EXIT
+             UNTIL END-OF-FILE
+                OR ERRORES.
+
+           PERFORM 8000-WRAP-UP
+              THRU 8000-WRAP-UP-EXIT.
+
+           STOP RUN.
+
+      ******************************************************************
+      *                       2000-HOUSEKEEPING                        *
+      *----------------------------------------------------------------*
+      *  ABRE EL FICHERO, LEE FICHERO Y CONTROLA ERRORES SI ESTA VACIO *
+      ******************************************************************
+       2000-HOUSEKEEPING.
+           ACCEPT AUX-FECHA  FROM DATE YYYYMMDD.
+           ACCEPT AUX-HOR    FROM TIME.
+           ACCEPT AUX-SYSIN  FROM SYSIN.
+
+           DISPLAY  'COMIENZA EL PROGRAMA: ' CTE-PROGRAMA
+               ' FECHA: ' AUX-ANYO '-' AUX-MES '-' AUX-DIA
+               ' HORA: '      AUX-HORA ':' AUX-MINUTO ':' AUX-SEGUNDO
+               ':' AUX-MILI.
+           DISPLAY AUX-TITULO.
+           DISPLAY '================================================'.
+
+      *    MOVE 'N' TO END-OF-SWITCH.
+           SET NOT-END-OF-FILE TO TRUE.
+
+      * --> 2100-ABRIR-FICHERO
+           OPEN INPUT CUENTO.
+
+           IF  FS-CUENTO NOT EQUAL TO ZEROS
+           DISPLAY 'ERROR AL ABRIR CUENTO. FS= ' FS-CUENTO
+
+               SET ERRORES TO TRUE
+           END-IF.
+
+           PERFORM 9000-LEER
+              THRU 9000-LEER-EXIT.
+
+      * --> CONTROL DE FICHERO VACIO (2300-CONTROL-VACIO)
+           IF END-OF-FILE
+      *       MOVE 'Y' TO EMPTY-FILE-SWITCH.
+              SET EMPTY-FILE TO TRUE
+           END-IF.
+       2000-HOUSEKEEPING-EXIT.
+           EXIT.
+
+      ******************************************************************
+      *                       3000-PROCESS                             *
+      *----------------------------------------------------------------*
+      *  ESTE PROCESO MUESTRA DATOS DEL REGISTRO Y LEE DE NUEVO.       *
+      ******************************************************************
+       3000-PROCESS.
+           DISPLAY 'ISBN: ' WS-IN-ISBN ' TITULO:' WS-IN-TITULO
+               ' EDITORIAL: ' WS-IN-EDITORIAL ' PRECIO: ' WS-IN-PRECIO
+               ' EDICION: ' WS-IN-CODEDI ' UNIDADES VENDIDAS: '
+               WS-IN-UNID-VENDIDAS.
+
+           PERFORM 9000-LEER
+              THRU 9000-LEER-EXIT.
+
+       3000-PROCESS-EXIT.
+           EXIT.
+
+      ******************************************************************
+      *                       8000-WRAP-UP                             *
+      *----------------------------------------------------------------*
+      * ESTE PROCESO CONTROLA VACIO/ERRORES, CIERRA FICHERO Y          *
+      * MUESTRA CONTADORES                                             *
+      ******************************************************************
+       8000-WRAP-UP.
+           IF  EMPTY-FILE THEN
+           DISPLAY 'FICHERO CUENTO VACIO.'
+
+           ELSE
+               IF ERRORES THEN
+           DISPLAY '//=======================//'
+           DISPLAY '//-----------------------//'
+           DISPLAY '// EJECUCION NO CORRECTA //'
+           DISPLAY '//-----------------------//'
+           DISPLAY '//=======================//'
+
+                  MOVE CTE-1001 TO RETURN-CODE
+
+              ELSE
+                  CLOSE CUENTO
+              END-IF
+           END-IF.
+
+           DISPLAY 'CUENTOS LEIDOS: ' CTR-LEIDOS.
+           DISPLAY 'FIN DE PROGRAMA: ' CTE-PROGRAMA.
+
+       8000-WRAP-UP-EXIT.
+           EXIT.
+
+      ******************************************************************
+      *                       9000-LEER                                *
+      * -------------------------------------------------------------- *
+      * LEE EL REGISTRO DEL FICHERO DE CUENTO.                         *
+      ******************************************************************
+       9000-LEER.
+           READ CUENTO INTO WS-IN-REG-CUENTO
+               AT END
+                   SET END-OF-FILE TO TRUE
+               NOT AT END
+                   ADD CTE-1 TO CTR-LEIDOS
+           END-READ.
+
+       9000-LEER-EXIT.
+           EXIT.
