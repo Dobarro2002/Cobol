@@ -1,0 +1,549 @@
+
+      ******************************************************************
+      * NOM. DESCR: MANTENIMIENTO DE LA TABLA DB2 -EMPLEADO-           *
+      * OBJETIVE:   ESTE PROGRAMA PROCESA FICHERO SECUENCIAL DE        *
+      *             MOVIMIENTOS Y ACTUALIZA LA TABLA DB2 -EMPLEADO-.   *
+      *             POR IGUALDAD DE CLAVE, ESTO ES, UNA SOLA FILA CADA *
+      *             VEZ.                                               *
+      *             SI WS-IN-TIPO = 1 --> INSERTAR 1 FILA EN LA TABLA. *
+      *             SI WS-IN-TIPO = 2 --> BORRAR 1 FILA EN LA TABLA.   *
+      *             SI WS-IN-TIPO = 3 --> ACTUALIZAR COLUMNA -1 FILA-  *
+      *             SI WS-IN-TIPO = 4 --> RECUPERAR 1 FILA DE LA TABLA.*
+      *             SI WS-IN-TIPO = 5 --> CASO DE MAS DE 1 FILA.       *
+      *             OTRO              --> AVISAR INCIDENCIA.           *
+      *             (COPYBOOK/INCLUDE INCEMPLE)                        *
+      * TYPE:       BATCH/DB2 UPDATE                                   *
+      * INPUTS:     FICHERO DE MOVIMIENTOS: MOVIM                      *
+      *                     T9716.T971634.ZDATOS.EMPLMOVI              *
+      * I-O:        TABLA DB2         -EMPLEADO-                       *
+      * OUTPUTS:    REPORT/SYSPRINT                                    *
+      ******************************************************************
+
+      ******************************************************************
+      *                    IDENTIFICATION DIVISION                     *
+      ******************************************************************
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. PB34D401.
+       AUTHOR. USUARIO (IRIA).
+       DATE-WRITTEN. ENERO, 2021.
+       DATE-COMPILED.
+
+      ******************************************************************
+      *                    ENVIRONMENT DIVISION                        *
+      ******************************************************************
+       ENVIRONMENT DIVISION.
+       CONFIGURATION SECTION.
+
+       SOURCE-COMPUTER. IBM-390.
+       OBJECT-COMPUTER. IBM-390.
+
+       SPECIAL-NAMES.
+           DECIMAL-POINT IS COMMA.
+
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+
+      ******************************************************************
+      *                    INPUT FILE                                  *
+      *----------------------------------------------------------------*
+      * FICHERO DE MOVIMIENTOS DONDE ESTA EL TIPO DE MOVIMIENTO QUE    *
+      * NOS INDICA LA ACCION A REALIZAR A LA TABLA DB2 -EMPLEADO.      *
+      ******************************************************************
+           SELECT EMPLEADO
+               ASSIGN TO FICHENTR
+               ORGANIZATION IS SEQUENTIAL
+               ACCESS MODE  IS SEQUENTIAL
+               FILE STATUS  IS FS-EMPLEADO.
+
+      ******************************************************************
+      *                       DATA DIVISION                            *
+      ******************************************************************
+       DATA DIVISION.
+       FILE SECTION.
+       FD  EMPLEADO
+           LABEL RECORDS ARE STANDARD
+           RECORDING MODE IS F
+           BLOCK CONTAINS 0 RECORDS
+           RECORD CONTAINS 100 CHARACTERS
+           DATA RECORD IS REG-EMPLEADO.
+       01  REG-EMPLEADO                   PIC X(100).
+
+      ******************************************************************
+      *                   WORKING-STORAGE SECTION                      *
+      ******************************************************************
+       WORKING-STORAGE SECTION.
+       01  WORK-AREA.
+
+      ******************************************************************
+      *                   RECORD LAYOUT                                *
+      *----------------------------------------------------------------*
+      *  DESCRIPCION DEL REGISTRO DEL FICHERO DE EMPLEADO.  LONG.:100  *
+      ******************************************************************
+           05  WS-IN-REG-EMPLEADO.
+               10  WS-IN-CODIGO            PIC 9(5)    VALUE ZEROS.
+               10  WS-IN-NOMBRE            PIC X(20)   VALUE SPACES.
+               10  WS-IN-CPOSTAL           PIC 9(5)    VALUE ZEROS.
+               10  WS-IN-CALLE             PIC X(20)   VALUE SPACES.
+               10  WS-IN-DEPAR             PIC 9(04)   VALUE ZEROS.
+               10  WS-IN-SALARIO           PIC S9(7)V99 COMP-3
+                                   VALUE ZEROS.
+               10  WS-IN-TIPO              PIC 9(03)   VALUE ZEROS.
+                   88  GRABAR                          VALUE 1.
+                   88  BORRAR                          VALUE 2.
+                   88  ACTUALIZAR                      VALUE 3.
+                   88  LEER-CLAVE                      VALUE 4.
+                   88  VARIAS-FILAS                    VALUE 5.
+                   88  OTRO
+                                   VALUE 0 6 THRU 999.
+               10  FILLER                  PIC X(38)   VALUE SPACES.
+
+      ******************************************************************
+      *                 FILE STATUS                                    *
+      ******************************************************************
+           05  FS-EMPLEADO                  PIC 99      VALUE ZEROS.
+
+      ******************************************************************
+      *                 FLAGS AND SWITCHES                             *
+      ******************************************************************
+           05  END-OF-SWITCH               PIC X       VALUE 'N'.
+               88  END-OF-FILE                         VALUE 'Y'.
+               88  NOT-END-OF-FILE                     VALUE 'N'.
+
+           05  END-FILE-SWITCH             PIC X       VALUE 'N'.
+               88  EMPTY-FILE                          VALUE 'Y'.
+
+           05  ERRORES-SWITCH              PIC X       VALUE 'N'.
+               88 ERRORES                              VALUE 'Y'.
+
+      ******************************************************************
+      *                 COUNTERS AND ACCUMULATORS                      *
+      ******************************************************************
+           05  CTR-LEIDOS                  PIC S9(9)   COMP-3
+                                   VALUE ZEROS.
+           05  CTR-GRABADOS                PIC S9(9)   COMP-3
+                                   VALUE ZEROS.
+           05  CTR-BORRADOS                PIC S9(9)   COMP-3
+                                   VALUE ZEROS.
+           05  CTR-ACTUALIZADOS            PIC S9(9)   COMP-3
+                                   VALUE ZEROS.
+           05  CTR-LEER-CLAVE              PIC S9(9)   COMP-3
+                                   VALUE ZEROS.
+           05  CTR-INCIDENCIAS             PIC S9(9)   COMP-3
+                                   VALUE ZEROS.
+           05  CTR-VARIAS-FILAS            PIC S9(9)   COMP-3
+                                   VALUE ZEROS.
+      ******************************************************************
+      *                 CONSTANTS AND LITERALS                         *
+      ******************************************************************
+           05  CTE-1                       PIC S9(1)   VALUE 1.
+           05  CTE-10                      PIC S9(2)   VALUE 10.
+           05  CTE-100                     PIC S9(3)   VALUE 100.
+           05  CTE-803                     PIC S9(3)   VALUE -803.
+           05  CTE-811                     PIC S9(3)   VALUE -811.
+           05  CTE-1001                    PIC S9(4)   VALUE 1001.
+           05  CTE-GUIONES                 PIC X(70)   VALUE ALL '='.
+           05  CTE-PROGRAMA                PIC X(08)   VALUE 'PB34D401'.
+
+      ******************************************************************
+      *                 SCRATCH AREA                                   *
+      ******************************************************************
+           05  AUX-TITULO                  PIC X(50)    VALUE SPACES.
+
+           05  AUX-FECHA.
+               10  AUX-ANYO                PIC 9(4)     VALUE ZERO.
+               10  AUX-MES                 PIC 9(2)     VALUE ZERO.
+               10  AUX-DIA                 PIC 9(2)     VALUE ZERO.
+
+           05  AUX-HOR.
+               10 AUX-HORA                 PIC 9(2)     VALUE ZERO.
+               10 AUX-MINUTO               PIC 9(2)     VALUE ZERO.
+               10 AUX-SEGUNDO              PIC 9(2)     VALUE ZERO.
+               10 AUX-MILI                 PIC 9(2)     VALUE ZERO.
+
+      ******************************************************************
+      *                  AREA DE COPIES E INCLUDES                     *
+      *----------------------------------------------------------------*
+      * -- EL SQLCA: AREA DE COMUNICACION DEL SQL. TIENE EL SQLCODE.   *
+      * -- 05 SQLCODE  PIC S9(9) COMP-4. ES BINARIO Y OCUPA 4 OCTETOS  *
+      ******************************************************************
+           EXEC SQL
+               INCLUDE SQLCA
+           END-EXEC.
+
+      *----------------------------------------------------------------*
+      * -- CONTIENE LAS COLUMNAS Y LAS VARIABLES DE LA TABLA EMPLEADO *
+      * --           GENERADAS POR LA DCLGEN. *
+      *----------------------------------------------------------------*
+           EXEC SQL
+               INCLUDE INCEMPLE
+           END-EXEC.
+      ******************************************************************
+      *                       PROCEDURE DIVISION                       *
+      ******************************************************************
+       PROCEDURE DIVISION.
+
+      ******************************************************************
+      *                       1000-MAINLINE                            *
+      *----------------------------------------------------------------*
+      * ESTE PARRAFO CONTROLA LA ESTRUCTURA DEL PROCESO DEL PROGRAMA   *
+      ******************************************************************
+       1000-MAINLINE.
+           PERFORM 2000-HOUSEKEEPING
+              THRU 2000-HOUSEKEEPING-EXIT.
+
+           PERFORM 3000-PROCESS
+              THRU 3000-PROCESS-EXIT
+             UNTIL END-OF-FILE
+                OR ERRORES.
+
+           PERFORM 8000-WRAP-UP
+              THRU 8000-WRAP-UP-EXIT.
+
+           STOP RUN.
+
+      ******************************************************************
+      *                       2000-HOUSEKEEPING                        *
+      *----------------------------------------------------------------*
+      *  ABRE EL FICHERO, LEE FICHERO Y CONTROLA ERRORES SI ESTA VACIO *
+      ******************************************************************
+       2000-HOUSEKEEPING.
+           ACCEPT AUX-FECHA  FROM DATE YYYYMMDD.
+           ACCEPT AUX-HOR    FROM TIME.
+           ACCEPT AUX-TITULO FROM SYSIN.
+
+           DISPLAY CTE-GUIONES.
+           DISPLAY  'COMIENZA EL PROGRAMA: ' CTE-PROGRAMA
+               ' FECHA: ' AUX-ANYO '-' AUX-MES '-' AUX-DIA
+               ' HORA: '      AUX-HORA ':' AUX-MINUTO ':' AUX-SEGUNDO
+               ':' AUX-MILI.
+
+           DISPLAY CTE-GUIONES.
+           DISPLAY AUX-TITULO.
+
+      *    MOVE 'N' TO END-OF-SWITCH.
+           SET NOT-END-OF-FILE TO TRUE.
+
+      * --> 2100-ABRIR-FICHERO
+           OPEN INPUT EMPLEADO.
+
+           IF  FS-EMPLEADO NOT EQUAL TO ZEROS
+           DISPLAY 'ERROR AL ABRIR EMPLEADO. FS= ' FS-EMPLEADO
+
+               SET ERRORES TO TRUE
+           END-IF.
+
+           PERFORM 9000-LEER
+              THRU 9000-LEER-EXIT.
+
+      * --> CONTROL DE FICHERO VACIO (2300-CONTROL-VACIO)
+           IF END-OF-FILE
+      *       MOVE 'Y' TO EMPTY-FILE-SWITCH.
+              SET EMPTY-FILE TO TRUE
+           END-IF.
+       2000-HOUSEKEEPING-EXIT.
+           EXIT.
+
+      ******************************************************************
+      *                       3000-PROCESS                             *
+      *----------------------------------------------------------------*
+      *  ESTE PROCESO MUESTRA DATOS DEL REGISTRO Y LEE DE NUEVO.       *
+      ******************************************************************
+       3000-PROCESS.
+           INITIALIZE DCLEMPLEADO.
+
+           EVALUATE TRUE
+               WHEN GRABAR
+                   PERFORM 3100-GRABAR
+                      THRU 3100-GRABAR-EXIT
+
+               WHEN BORRAR
+                   PERFORM 3200-BORRAR
+                      THRU 3200-BORRAR-EXIT
+
+               WHEN ACTUALIZAR
+                   PERFORM 3300-ACTUALIZAR
+                      THRU 3300-ACTUALIZAR-EXIT
+
+               WHEN LEER-CLAVE
+                   PERFORM 3400-LEER-CLAVE
+                      THRU 3400-LEER-CLAVE-EXIT
+
+               WHEN VARIAS-FILAS
+                   PERFORM 3500-VARIAS-FILAS
+                      THRU 3500-VARIAS-FILAS-EXIT
+
+               WHEN OTRO
+                   DISPLAY 'TIPO ERRONEO: ' WS-IN-TIPO
+
+                   ADD CTE-1 TO CTR-INCIDENCIAS
+           END-EVALUATE.
+
+           PERFORM 9000-LEER
+              THRU 9000-LEER-EXIT.
+
+       3000-PROCESS-EXIT.
+           EXIT.
+
+      ******************************************************************
+      *                       3100-GRABAR                              *
+      *----------------------------------------------------------------*
+      * ESTE PARRAFO AÑADE UNA NUEVA FILA A LA TABLA DB2.              *
+      ******************************************************************
+       3100-GRABAR.
+           MOVE WS-IN-CODIGO  TO EMP-CODIGO  IN DCLEMPLEADO.
+           MOVE WS-IN-NOMBRE  TO EMP-NOMBRE  IN DCLEMPLEADO.
+           MOVE WS-IN-DEPAR   TO EMP-DEPART  IN DCLEMPLEADO.
+           MOVE WS-IN-SALARIO TO EMP-SALARIO IN DCLEMPLEADO.
+
+           EXEC SQL
+               INSERT INTO EMPLEADO
+                      (EMP_CODIGO,
+                       EMP_NOMBRE,
+                       EMP_DEPART,
+                       EMP_SALARIO)
+               VALUES (:DCLEMPLEADO.EMP-CODIGO,
+                       :DCLEMPLEADO.EMP-NOMBRE,
+                       :DCLEMPLEADO.EMP-DEPART,
+                       :DCLEMPLEADO.EMP-SALARIO)
+           END-EXEC.
+
+           EVALUATE SQLCODE
+               WHEN ZERO
+                   ADD CTE-1 TO CTR-GRABADOS
+
+               WHEN CTE-803
+                   DISPLAY 'CLAVE DUPLICADA ' WS-IN-CODIGO
+
+                   ADD CTE-1 TO CTR-INCIDENCIAS
+
+               WHEN OTHER
+                   DISPLAY 'ERROR AL INSERTAR. SQLCODE= ' SQLCODE
+                           ' CODIGO = ' EMP-CODIGO
+                   SET ERRORES TO TRUE
+           END-EVALUATE.
+
+       3100-GRABAR-EXIT.
+           EXIT.
+
+      ******************************************************************
+      *                       3200-BORRAR                              *
+      *----------------------------------------------------------------*
+      * ESTE PARRAFO ELIMINA DE LA TABLA DB2 LA FILA DE LA CLAVE QUE   *
+      * NOS LLEGA DEL FICHERO DE MOVIMIENTOS.                          *
+      ******************************************************************
+       3200-BORRAR.
+           MOVE WS-IN-CODIGO  TO EMP-CODIGO  IN DCLEMPLEADO.
+
+           EXEC SQL
+               DELETE FROM EMPLEADO
+                WHERE EMP_CODIGO = :DCLEMPLEADO.EMP-CODIGO
+           END-EXEC.
+
+           EVALUATE SQLCODE
+               WHEN ZERO
+                   ADD CTE-1 TO CTR-BORRADOS
+
+               WHEN CTE-100
+                   DISPLAY 'CLAVE A BORRAR NO EXISTE: ' WS-IN-CODIGO
+
+                   ADD CTE-1 TO CTR-INCIDENCIAS
+
+               WHEN OTHER
+                   DISPLAY 'ERROR AL BORRAR. SQLCODE= ' SQLCODE
+                           ' CODIGO = ' WS-IN-CODIGO
+
+                   SET ERRORES TO TRUE
+           END-EVALUATE.
+
+       3200-BORRAR-EXIT.
+           EXIT.
+
+      ******************************************************************
+      *                       3300-ACTUALIZAR                          *
+      *----------------------------------------------------------------*
+      * ESTE PARRAFO ACTUALIZA DE LA TABLA DB2 LA FILA DE LA CLAVE     *
+      * SOLICITADA.                                                    *
+      ******************************************************************
+       3300-ACTUALIZAR.
+           MOVE WS-IN-CODIGO  TO EMP-CODIGO  IN DCLEMPLEADO.
+           MOVE WS-IN-NOMBRE  TO EMP-NOMBRE  IN DCLEMPLEADO.
+           MOVE WS-IN-DEPAR   TO EMP-DEPART  IN DCLEMPLEADO.
+           MOVE WS-IN-SALARIO TO EMP-SALARIO IN DCLEMPLEADO.
+
+           EXEC SQL
+               UPDATE EMPLEADO
+                  SET EMP_NOMBRE  = :DCLEMPLEADO.EMP-NOMBRE,
+                      EMP_DEPART  = :DCLEMPLEADO.EMP-DEPART,
+                      EMP_SALARIO = :DCLEMPLEADO.EMP-SALARIO
+                WHERE EMP_CODIGO  = :DCLEMPLEADO.EMP-CODIGO
+           END-EXEC.
+
+           EVALUATE SQLCODE
+               WHEN ZERO
+                   ADD CTE-1 TO CTR-ACTUALIZADOS
+
+               WHEN CTE-100
+                   DISPLAY 'CLAVE A ACTUALIZAR NO EXISTE: ' WS-IN-CODIGO
+
+                   ADD CTE-1 TO CTR-INCIDENCIAS
+
+               WHEN OTHER
+                   DISPLAY 'ERROR AL ACTUALIZAR. SQLCODE= ' SQLCODE
+                           ' CODIGO = ' WS-IN-CODIGO
+
+                   SET ERRORES TO TRUE
+           END-EVALUATE.
+
+       3300-ACTUALIZAR-EXIT.
+           EXIT.
+
+      ******************************************************************
+      *                       3400-LEER-CLAVE                          *
+      *----------------------------------------------------------------*
+      * ESTE PARRAFO LEE POR CLAVE EN LA TABLA DB2. RECUPERA UNA FILA  *
+      ******************************************************************
+       3400-LEER-CLAVE.
+           MOVE WS-IN-CODIGO  TO EMP-CODIGO  IN DCLEMPLEADO.
+
+           EXEC SQL
+               SELECT EMP_NOMBRE,
+                      EMP_DEPART,
+                      EMP_SALARIO
+                 INTO :DCLEMPLEADO.EMP-NOMBRE,
+                      :DCLEMPLEADO.EMP-DEPART,
+                      :DCLEMPLEADO.EMP-SALARIO
+                 FROM EMPLEADO
+                WHERE EMP_CODIGO  = :DCLEMPLEADO.EMP-CODIGO
+           END-EXEC.
+
+           EVALUATE SQLCODE
+               WHEN ZERO
+                   DISPLAY 'EMPLEADO SELECCIONADO: ' EMP-NOMBRE
+                                    ' DEPAR= '       EMP-DEPART
+                                    ' SALARIO= '     EMP-SALARIO
+
+                   ADD CTE-1 TO CTR-LEER-CLAVE
+
+               WHEN CTE-100
+                   DISPLAY 'NO EXISTE EMPL AL LEER CLAVE ' WS-IN-CODIGO
+
+                   ADD CTE-1 TO CTR-INCIDENCIAS
+
+               WHEN OTHER
+                   DISPLAY 'ERROR AL LEER EN DB2. SQLCODE= ' SQLCODE
+                           ' CODIGO = ' WS-IN-CODIGO
+
+                   SET ERRORES TO TRUE
+           END-EVALUATE.
+
+       3400-LEER-CLAVE-EXIT.
+           EXIT.
+
+      ******************************************************************
+      *                       3500-VARIAS-FILAS                        *
+      *----------------------------------------------------------------*
+      * ESTE PARRAFO LEE DE LA TABLA DB2 POR CODIGO ->- AL CODIGO      *
+      * SOLICITADO Y                                                   *
+      * COMPRUEBA SI HAY VARIAS FILAS QUE CUMPLAN LA CONDICION. *
+      ******************************************************************
+       3500-VARIAS-FILAS.
+           MOVE WS-IN-CODIGO  TO EMP-CODIGO  IN DCLEMPLEADO.
+
+           EXEC SQL
+               SELECT EMP_NOMBRE,
+                      EMP_DEPART,
+                      EMP_SALARIO
+                 INTO :DCLEMPLEADO.EMP-NOMBRE,
+                      :DCLEMPLEADO.EMP-DEPART,
+                      :DCLEMPLEADO.EMP-SALARIO
+                 FROM EMPLEADO
+                WHERE EMP_CODIGO  > :DCLEMPLEADO.EMP-CODIGO
+           END-EXEC.
+
+           EVALUATE SQLCODE
+               WHEN ZERO
+                   DISPLAY 'RECUPERA UNA FILA '        EMP-CODIGO
+                           ' NOMBRE: '                 EMP-NOMBRE
+                           ' DEPAR= '                  EMP-DEPART
+                           ' SALARIO= '                EMP-SALARIO
+
+                   ADD CTE-1 TO CTR-VARIAS-FILAS
+
+               WHEN CTE-100
+                   DISPLAY 'NO EXISTEN FILAS PARA CODIGO> ' WS-IN-CODIGO
+
+                   ADD CTE-1 TO CTR-INCIDENCIAS
+
+               WHEN CTE-811
+                   DISPLAY '**** ------------------- **** '
+                   DISPLAY '**** HAY MAS DE UNA FILA **** ' SQLCODE
+                   DISPLAY '**** EMP-CODIGO  : ' EMP-CODIGO
+                   DISPLAY '**** EMP-NOMBRE  : ' EMP-NOMBRE
+                   DISPLAY '**** ------------------- **** '
+
+                   ADD CTE-1 TO CTR-VARIAS-FILAS
+
+               WHEN OTHER
+                   DISPLAY 'ERROR EN -VARIAS FILAS- SQLCODE= ' SQLCODE
+                           ' CODIGO = ' WS-IN-CODIGO
+
+                   SET ERRORES TO TRUE
+           END-EVALUATE.
+
+       3500-VARIAS-FILAS-EXIT.
+           EXIT.
+
+      ******************************************************************
+      *                       8000-WRAP-UP                             *
+      *----------------------------------------------------------------*
+      * ESTE PROCESO CONTROLA VACIO/ERRORES, CIERRA FICHERO Y          *
+      * MUESTRA CONTADORES                                             *
+      ******************************************************************
+       8000-WRAP-UP.
+           EVALUATE TRUE
+               WHEN EMPTY-FILE
+                   DISPLAY 'FICHERO EMPLEADO VACIO.'
+
+               WHEN ERRORES
+                   DISPLAY '//=======================//'
+                   DISPLAY '//-----------------------//'
+                   DISPLAY '// EJECUCION NO CORRECTA //'
+                   DISPLAY '//-----------------------//'
+                   DISPLAY '//=======================//'
+
+                  MOVE CTE-1001 TO RETURN-CODE
+
+               WHEN OTHER
+                   CLOSE EMPLEADO
+
+           END-EVALUATE.
+
+           DISPLAY CTE-GUIONES.
+           DISPLAY 'LEIDOS FICHERO EMPLEADO. ' CTR-LEIDOS.
+           DISPLAY 'GRABADOS TABLA:          ' CTR-GRABADOS.
+           DISPLAY 'BORRADOS TABLA:          ' CTR-BORRADOS.
+           DISPLAY 'ACTUALIZADOS TABLA:      ' CTR-ACTUALIZADOS.
+           DISPLAY 'LEER-CLAVE TABLA:        ' CTR-LEER-CLAVE.
+           DISPLAY '**CON MAS DE UNA FILA**: ' CTR-VARIAS-FILAS.
+           DISPLAY 'INCIDENCIAS:             ' CTR-INCIDENCIAS.
+           DISPLAY 'FIN DE PROGRAMA: ' CTE-PROGRAMA.
+           DISPLAY CTE-GUIONES.
+
+       8000-WRAP-UP-EXIT.
+           EXIT.
+
+      ******************************************************************
+      *                       9000-LEER                                *
+      * -------------------------------------------------------------- *
+      * LEE EL REGISTRO DEL FICHERO DE EMPLEADO.                       *
+      ******************************************************************
+       9000-LEER.
+           READ EMPLEADO INTO WS-IN-REG-EMPLEADO
+               AT END
+                   SET END-OF-FILE TO TRUE
+               NOT AT END
+                   ADD CTE-1 TO CTR-LEIDOS
+           END-READ.
+
+       9000-LEER-EXIT.
+           EXIT.
