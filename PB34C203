@@ -1,0 +1,201 @@
+
+      ******************************************************************
+      * NOM. DESCR: ESTE PROGRAMA CARGA TABLA INTERNA -MESES ANYO-     *
+      * OBJETIVE:   ESTE PROGRAMA COGE LA FECHA Y LA HORA DEL SISTEMA  *
+      *             DEFINE LA TABLA -CON VALORES EN WORKING-           *
+      *             Y LOS MUESTRA EN UN REPORT/SPOOL                   *
+      *             TAMBIEN SE RECOGERA UN MES A BUSCAR QUE            *
+      *             SE BUSCARA EN LA TABLA YA CARGADA Y                *
+      *             SI LO ENCUENTRA MOSTRARA EL MES BUSCADO            *
+      *             SINO LO ENCUENTRA MOSTARA 'MES NO ENCONTRADO'      *
+      * TYPE:       BATCH REPORT                                       *
+      * INPUTS:     DATOS DEL SISTEMA (FECHA Y HORA)                   *
+      *             DATOS DE SYSIN (TITULO, MES A BUSCAR)              *
+      * OUTPUTS:    REPORT/SYSPRINT                                    *
+      ******************************************************************
+
+      ******************************************************************
+      *                    IDENTIFICATION DIVISION                     *
+      ******************************************************************
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. PB34C203.
+       AUTHOR. USUARIO (IRIA).
+       DATE-WRITTEN. ENERO, 2021.
+       DATE-COMPILED.
+
+      ******************************************************************
+      *                    ENVIRONMENT DIVISION                        *
+      ******************************************************************
+       ENVIRONMENT DIVISION.
+       CONFIGURATION SECTION.
+
+       SOURCE-COMPUTER. IBM-390.
+       OBJECT-COMPUTER. IBM-390.
+
+       SPECIAL-NAMES.
+           DECIMAL-POINT IS COMMA.
+
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+
+      ******************************************************************
+      *                       DATA DIVISION                            *
+      ******************************************************************
+       DATA DIVISION.
+       FILE SECTION.
+
+       WORKING-STORAGE SECTION.
+       01  WORK-AREA.
+
+      ******************************************************************
+      *                         TABLES                                 *
+      ******************************************************************
+           05  MESES.
+               10  FILLER                  PIC X(10)    VALUE 'ENERO'.
+               10  FILLER                  PIC X(10)
+                                   VALUE 'FEBRERO'.
+               10  FILLER                  PIC X(10)    VALUE 'MARZO'.
+               10  FILLER                  PIC X(10)    VALUE 'ABRIL'.
+               10  FILLER                  PIC X(10)    VALUE 'MAYO'.
+               10  FILLER                  PIC X(10)    VALUE 'JUNIO'.
+               10  FILLER                  PIC X(10)    VALUE 'JULIO'.
+               10  FILLER                  PIC X(10)    VALUE 'AGOSTO'.
+               10  FILLER                  PIC X(10)
+                                   VALUE 'SEPTIEMBRE'.
+               10  FILLER                  PIC X(10)
+                                   VALUE 'OCTUBRE'.
+               10  FILLER                  PIC X(10)
+                                   VALUE 'NOVIEMBRE'.
+               10  FILLER                  PIC X(10)
+                                   VALUE 'DICIEMBRE'.
+
+           05  TBL-MESES-ANYO              REDEFINES MESES
+                                           OCCURS 12 TIMES
+                                           PIC X(10).
+
+      ******************************************************************
+      *                    SCRATCH AREA                                *
+      ******************************************************************
+           05  CTE-1                       PIC 9(2)    VALUE 01.
+           05  CTE-12                      PIC 9(2)    VALUE 12.
+           05  CTE-PROGRAMA                PIC X(8)    VALUE 'PB34C203'.
+
+           05  AUX-TITULO                  PIC X(50)   VALUE SPACES.
+           05  AUX-ENCONTRADO              PIC 9       VALUE ZERO.
+           05  AUX-BUSCAR                  PIC X(10)   VALUE SPACES.
+           05  AUX-I                       PIC 99      VALUE ZERO.
+           05  AUX-FECHA.
+               10  AUX-ANYO                PIC 9(4)    VALUE ZERO.
+               10  AUX-MES                 PIC 9(2)    VALUE ZEROS.
+               10  AUX-DIA                 PIC 9(2)    VALUE ZEROES.
+
+           05  AUX-HOR.
+               10  AUX-HORA                PIC 9(2)    VALUE ZEROS.
+               10  AUX-MINUTO              PIC 99      VALUE ZEROS.
+               10  AUX-SEGUNDO             PIC 9(2)    VALUE ZEROS.
+               10  AUX-MILI                PIC 9(2)    VALUE ZEROS.
+
+      ******************************************************************
+      *                       PROCEDURE DIVISION                       *
+      ******************************************************************
+       PROCEDURE DIVISION.
+
+      ******************************************************************
+      *                       1000-MAINLINE                            *
+      *----------------------------------------------------------------*
+      * ESTE PARRAFO CONTROLA LA ESTRUCTURA DEL PROCESO DEL PROGRAMA   *
+      ******************************************************************
+       1000-MAINLINE.
+           PERFORM 2000-HOUSEKEEPING
+              THRU 2000-HOUSEKEEPING-EXIT.
+
+           PERFORM 3000-PROCESS
+              THRU 3000-PROCESS-EXIT
+
+           PERFORM 8000-WRAP-UP
+              THRU 8000-WRAP-UP-EXIT.
+
+           STOP RUN.
+
+      ******************************************************************
+      *                       2000-HOUSEKEEPING                        *
+      ******************************************************************
+       2000-HOUSEKEEPING.
+           ACCEPT AUX-FECHA  FROM DATE YYYYMMDD.
+           ACCEPT AUX-HOR    FROM TIME.
+           ACCEPT AUX-TITULO FROM SYSIN.
+
+           DISPLAY 'COMIENZA EL PROGRAMA: ' CTE-PROGRAMA '.'
+                   ' FECHA: ' AUX-ANYO '-' AUX-MES '-' AUX-DIA
+                   ' HORA: ' AUX-HORA ':' AUX-MINUTO ':'
+                    AUX-SEGUNDO ':' AUX-MILI.
+           DISPLAY AUX-TITULO.
+           DISPLAY '================================================='.
+
+       2000-HOUSEKEEPING-EXIT.
+           EXIT.
+
+      ******************************************************************
+      *                       3000-PROCESS                             *
+      *----------------------------------------------------------------*
+      * ESTE PÁRRAFO CARGA LA TABLA DESDE SYSIN.                       *
+      ******************************************************************
+       3000-PROCESS.
+           DISPLAY '3000-PROCESS'.
+
+       3000-PROCESS-EXIT.
+           EXIT.
+
+      ******************************************************************
+      *                       8000-WRAP-UP                             *
+      ******************************************************************
+       8000-WRAP-UP.
+      * --> RECORRE LA TABLA PARA MOSTRAR TODOS LOS ELEMENTOS.
+           MOVE CTE-1 TO AUX-I.
+           DISPLAY '     LA TABLA CONTIENE:'
+
+           PERFORM UNTIL AUX-I GREATER THAN CTE-12
+               DISPLAY TBL-MESES-ANYO(AUX-I)
+                   ' IND= ' AUX-I
+
+               ADD CTE-1 TO AUX-I
+
+           END-PERFORM.
+
+      * --> BUSCA UN ELEMENTO EN LA TABLA.
+           PERFORM 8100-BUSCAR
+              THRU 8100-BUSCAR-EXIT.
+
+           DISPLAY 'FIN DEL PROGRAMA: ' CTE-PROGRAMA.
+
+       8000-WRAP-UP-EXIT.
+           EXIT.
+
+      ******************************************************************
+      *                       8100-BUSCAR                              *
+      *----------------------------------------------------------------*
+      * RECOGE DE SYSIN UN MES A BUSCAR EN LA TABLA INTERNA Y LA       *
+      * BUSCA. SI ENCUENTRA EL MES LO MUESTRA Y SINO MUESTRA NO ENCONT.*
+      ******************************************************************
+       8100-BUSCAR.
+           ACCEPT AUX-BUSCAR.
+
+           DISPLAY 'BUSCAR EN LA TABLA EL MES: ' AUX-BUSCAR
+
+           PERFORM VARYING AUX-I FROM CTE-1 BY CTE-1
+             UNTIL AUX-I GREATER THAN CTE-12 OR
+                   AUX-ENCONTRADO EQUAL CTE-1
+               IF  AUX-BUSCAR EQUAL TO TBL-MESES-ANYO(AUX-I)
+                   DISPLAY ' MES ENCONTRADO= ' TBL-MESES-ANYO(AUX-I)
+                       ' EN POSICION= ' AUX-I
+
+                   MOVE CTE-1 TO AUX-ENCONTRADO
+               END-IF
+           END-PERFORM.
+
+           IF  AUX-ENCONTRADO EQUAL TO ZERO
+               DISPLAY ' MES NO ENCONTRADO= ' AUX-BUSCAR
+           END-IF.
+
+       8100-BUSCAR-EXIT.
+           EXIT.
