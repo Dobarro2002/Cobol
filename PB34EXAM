@@ -1,0 +1,332 @@
+
+      ******************************************************************
+      * NOM. DESCR: MANTENIMIENTO DE LA TABLA DB2 -CURSO-              *
+      * OBJETIVE:   ESTE PROGRAMA PROCESA FICHERO SECUENCIAL DE        *
+      *             MOVIMIENTOS Y ACTUALIZA LA TABLA DB2 -CURSO-.      *
+      *             POR IGUALDAD DE CLAVE, ESTO ES, UNA SOLA FILA CADA *
+      *             VEZ.                                               *
+      *             LOS REGISTROS QUE HAYA EN EL FICHERO LOS INSERTARÁ *
+      *             EN LA TABLA SI NO SON DUPLICADOS, SI SON DUPLICADOS*
+      *             MOSTRARÁ EL CODIGO DEL REGISTRO DUPLICADO          *
+      *             (COPYBOOK/INCLUDE INCEMPLE)                        *
+      * TYPE:       BATCH/DB2 UPDATE                                   *
+      * INPUTS:     FICHERO DE MOVIMIENTOS: FICHENTR                   *
+      *                     T9716.T971634.ZENTEXAM.CURSO               *
+      * I-O:        TABLA DB2         -CURSO-                          *
+      * OUTPUTS:    REPORT/SYSPRINT                                    *
+      ******************************************************************
+
+      ******************************************************************
+      *                    IDENTIFICATION DIVISION                     *
+      ******************************************************************
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. PB34EXAM.
+       AUTHOR. USUARIO (IRIA).
+       DATE-WRITTEN. FEBRERO, 2021.
+       DATE-COMPILED.
+
+      ******************************************************************
+      *                    ENVIRONMENT DIVISION                        *
+      ******************************************************************
+       ENVIRONMENT DIVISION.
+       CONFIGURATION SECTION.
+
+       SOURCE-COMPUTER. IBM-390.
+       OBJECT-COMPUTER. IBM-390.
+
+       SPECIAL-NAMES.
+           DECIMAL-POINT IS COMMA.
+
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+
+      ******************************************************************
+      *                    INPUT FILE                                  *
+      *----------------------------------------------------------------*
+      * FICHERO DE MOVIMIENTOS DONDE ESTA EL TIPO DE MOVIMIENTO QUE    *
+      * NOS INDICA LOS REGISTROS A INSERTAR EN LA TABLA DB2 -CURSO-    *
+      ******************************************************************
+           SELECT CURSO
+               ASSIGN TO FICHENTR
+               ORGANIZATION IS SEQUENTIAL
+               ACCESS MODE  IS SEQUENTIAL
+               FILE STATUS  IS FS-CURSO.
+
+      ******************************************************************
+      *                       DATA DIVISION                            *
+      ******************************************************************
+       DATA DIVISION.
+       FILE SECTION.
+       FD  CURSO
+           LABEL RECORDS ARE STANDARD
+           RECORDING MODE IS F
+           BLOCK CONTAINS 0 RECORDS
+           RECORD CONTAINS 100 CHARACTERS
+           DATA RECORD IS REG-CURSO.
+       01  REG-CURSO                      PIC X(100).
+
+      ******************************************************************
+      *                   WORKING-STORAGE SECTION                      *
+      ******************************************************************
+       WORKING-STORAGE SECTION.
+       01  WORK-AREA.
+
+      ******************************************************************
+      *                   RECORD LAYOUT                                *
+      *----------------------------------------------------------------*
+      *  DESCRIPCION DEL REGISTRO DEL FICHERO DE CURSO.     LONG.:100  *
+      ******************************************************************
+           05  WS-IN-REG-CURSO.
+               10  WS-IN-CODIGO            PIC X(3)    VALUE SPACES.
+               10  WS-IN-DESCRIP           PIC X(35)   VALUE SPACES.
+               10  WS-IN-FORMADOR          PIC X(40)   VALUE SPACES.
+               10  WS-IN-FECHA             PIC X(10)   VALUE SPACES.
+               10  FILLER                  PIC X(12)   VALUE SPACES.
+
+      ******************************************************************
+      *                 FILE STATUS                                    *
+      ******************************************************************
+           05  FS-CURSO                     PIC 99      VALUE ZEROS.
+
+      ******************************************************************
+      *                 FLAGS AND SWITCHES                             *
+      ******************************************************************
+           05  END-OF-SWITCH               PIC X       VALUE 'N'.
+               88  END-OF-FILE                         VALUE 'Y'.
+               88  NOT-END-OF-FILE                     VALUE 'N'.
+
+           05  END-FILE-SWITCH             PIC X       VALUE 'N'.
+               88  EMPTY-FILE                          VALUE 'Y'.
+
+           05  ERRORES-SWITCH              PIC X       VALUE 'N'.
+               88 ERRORES                              VALUE 'Y'.
+
+      ******************************************************************
+      *                 COUNTERS AND ACCUMULATORS                      *
+      ******************************************************************
+           05  CTR-LEIDOS                  PIC S9(9)   COMP-3
+                                   VALUE ZEROS.
+           05  CTR-INSERTADOS              PIC S9(9)   COMP-3
+                                   VALUE ZEROS.
+           05  CTR-DUPLICADOS              PIC S9(9)   COMP-3
+                                   VALUE ZEROS.
+           05  CTR-LEIDOS-E                PIC ZZZ.ZZ9- VALUE ZEROS.
+           05  CTR-INSERTADOS-E            PIC ZZZ.ZZ9- VALUE ZEROS.
+           05  CTR-DUPLICADOS-E            PIC ZZZ.ZZ9- VALUE ZEROS.
+      ******************************************************************
+      *                 CONSTANTS AND LITERALS                         *
+      ******************************************************************
+           05  CTE-0                       PIC S9(1)   VALUE 0.
+           05  CTE-1                       PIC S9(1)   VALUE 1.
+           05  CTE-803                     PIC S9(3)   VALUE -803.
+           05  CTE-1001                    PIC S9(4)   VALUE 1001.
+           05  CTE-GUIONES                 PIC X(70)   VALUE ALL '='.
+           05  CTE-PROGRAMA                PIC X(08)   VALUE 'PB34EXAM'.
+           05  CTE-NEGATIVA                PIC S9      VALUE -1.
+      ******************************************************************
+      *                 SCRATCH AREA                                   *
+      ******************************************************************
+           05  AUX-TITULO                  PIC X(50)    VALUE SPACES.
+
+           05  AUX-FECHA.
+               10  AUX-ANYO                PIC 9(4)     VALUE ZERO.
+               10  AUX-MES                 PIC 9(2)     VALUE ZERO.
+               10  AUX-DIA                 PIC 9(2)     VALUE ZERO.
+
+           05  AUX-HOR.
+               10 AUX-HORA                 PIC 9(2)     VALUE ZERO.
+               10 AUX-MINUTO               PIC 9(2)     VALUE ZERO.
+               10 AUX-SEGUNDO              PIC 9(2)     VALUE ZERO.
+               10 AUX-MILI                 PIC 9(2)     VALUE ZERO.
+
+           05  AUX-NULO                    PIC S9(4) COMP
+                                    VALUE ZERO.
+
+      ******************************************************************
+      *                  AREA DE COPIES E INCLUDES                     *
+      *----------------------------------------------------------------*
+      * -- EL SQLCA: AREA DE COMUNICACION DEL SQL. TIENE EL SQLCODE.   *
+      * -- 05 SQLCODE  PIC S9(9) COMP-4. ES BINARIO Y OCUPA 4 OCTETOS  *
+      ******************************************************************
+           EXEC SQL
+               INCLUDE SQLCA
+           END-EXEC.
+
+      *----------------------------------------------------------------*
+      * -- CONTIENE LAS COLUMNAS Y LAS VARIABLES DE LA TABLA CURSO    *
+      * --           GENERADAS POR LA DCLGEN. *
+      *----------------------------------------------------------------*
+           EXEC SQL
+               INCLUDE INCCURSO
+           END-EXEC.
+      ******************************************************************
+      *                       PROCEDURE DIVISION                       *
+      ******************************************************************
+       PROCEDURE DIVISION.
+
+      ******************************************************************
+      *                       1000-MAINLINE                            *
+      *----------------------------------------------------------------*
+      * ESTE PARRAFO CONTROLA LA ESTRUCTURA DEL PROCESO DEL PROGRAMA   *
+      ******************************************************************
+       1000-MAINLINE.
+           PERFORM 2000-HOUSEKEEPING
+              THRU 2000-HOUSEKEEPING-EXIT.
+
+           PERFORM 3000-PROCESS
+              THRU 3000-PROCESS-EXIT
+             UNTIL END-OF-FILE
+                OR ERRORES.
+
+           PERFORM 8000-WRAP-UP
+              THRU 8000-WRAP-UP-EXIT.
+
+           STOP RUN.
+
+      ******************************************************************
+      *                       2000-HOUSEKEEPING                        *
+      *----------------------------------------------------------------*
+      *  ABRE EL FICHERO, LEE FICHERO Y CONTROLA ERRORES SI ESTA VACIO *
+      ******************************************************************
+       2000-HOUSEKEEPING.
+           ACCEPT AUX-FECHA  FROM DATE YYYYMMDD.
+           ACCEPT AUX-HOR    FROM TIME.
+           ACCEPT AUX-TITULO FROM SYSIN.
+
+           DISPLAY CTE-GUIONES.
+           DISPLAY  'COMIENZA EL PROGRAMA: ' CTE-PROGRAMA
+           DISPLAY  'HOY ES: ' AUX-ANYO '/' AUX-MES '/' AUX-DIA
+           DISPLAY  'SON LAS: ' AUX-HORA ':' AUX-MINUTO ':' AUX-SEGUNDO
+               ':' AUX-MILI.
+
+           DISPLAY CTE-GUIONES.
+           DISPLAY AUX-TITULO.
+
+      *    MOVE 'N' TO END-OF-SWITCH.
+           SET NOT-END-OF-FILE TO TRUE.
+
+      * --> 2100-ABRIR-FICHERO
+           OPEN INPUT CURSO.
+
+           IF  FS-CURSO NOT EQUAL TO ZEROS
+           DISPLAY 'ERROR AL ABRIR CURSO. FS= ' FS-CURSO
+
+               SET ERRORES TO TRUE
+           END-IF.
+
+           PERFORM 9000-LEER
+              THRU 9000-LEER-EXIT.
+
+      * --> CONTROL DE FICHERO VACIO (2300-CONTROL-VACIO)
+           IF END-OF-FILE
+      *       MOVE 'Y' TO EMPTY-FILE-SWITCH.
+              SET EMPTY-FILE TO TRUE
+           END-IF.
+       2000-HOUSEKEEPING-EXIT.
+           EXIT.
+
+      ******************************************************************
+      *                       3000-PROCESS                             *
+      *----------------------------------------------------------------*
+      *  ESTE PROCESO CONTROLA LA INSERCCION DE REGISTROS EN LA TABLA  *
+      ******************************************************************
+       3000-PROCESS.
+           INITIALIZE DCLCURSO.
+           MOVE WS-IN-CODIGO   TO CUR-CODIGO   IN DCLCURSO.
+           MOVE WS-IN-DESCRIP  TO CUR-DESCRIP  IN DCLCURSO.
+           MOVE WS-IN-FORMADOR TO CUR-FORMADOR IN DCLCURSO.
+           MOVE WS-IN-FECHA    TO CUR-FECHA    IN DCLCURSO.
+
+             IF  WS-IN-FECHA IS GREATER THAN ZERO
+                 MOVE CTE-0        TO AUX-NULO
+             ELSE
+                 MOVE CTE-NEGATIVA TO AUX-NULO
+             END-IF.
+
+           EXEC SQL
+               INSERT INTO CURSO
+                      (CUR_CODIGO,
+                       CUR_DESCRIP,
+                       CUR_FORMADOR,
+                       CUR_FECHA)
+               VALUES (:DCLCURSO.CUR-CODIGO,
+                       :DCLCURSO.CUR-DESCRIP,
+                       :DCLCURSO.CUR-FORMADOR,
+                       :DCLCURSO.CUR-FECHA :AUX-NULO)
+           END-EXEC.
+
+           EVALUATE SQLCODE
+               WHEN ZERO
+                   ADD CTE-1 TO CTR-INSERTADOS
+
+               WHEN CTE-803
+                   DISPLAY 'CLAVE DUPLICADA ' WS-IN-CODIGO
+
+                   ADD CTE-1 TO CTR-DUPLICADOS
+
+               WHEN OTHER
+                   DISPLAY 'ERROR AL INSERTAR. SQLCODE= ' SQLCODE
+                           ' CODIGO = ' CUR-CODIGO
+                   SET ERRORES TO TRUE
+           END-EVALUATE.
+
+           PERFORM 9000-LEER
+              THRU 9000-LEER-EXIT.
+
+       3000-PROCESS-EXIT.
+           EXIT.
+
+      ******************************************************************
+      *                       8000-WRAP-UP                             *
+      *----------------------------------------------------------------*
+      * ESTE PROCESO CONTROLA VACIO/ERRORES, CIERRA FICHERO Y          *
+      * MUESTRA CONTADORES                                             *
+      ******************************************************************
+       8000-WRAP-UP.
+           EVALUATE TRUE
+               WHEN EMPTY-FILE
+                   DISPLAY '--- NO HAY REGISTROS PARA PROCESAR ---'
+
+               WHEN ERRORES
+                   DISPLAY '//=======================//'
+                   DISPLAY '//-----------------------//'
+                   DISPLAY '// EJECUCION NO CORRECTA //'
+                   DISPLAY '//-----------------------//'
+                   DISPLAY '//=======================//'
+
+                  MOVE CTE-1001 TO RETURN-CODE
+
+               WHEN OTHER
+                   CLOSE CURSO
+                   MOVE  CTR-LEIDOS     TO CTR-LEIDOS-E
+                   MOVE  CTR-INSERTADOS TO CTR-INSERTADOS-E
+                   MOVE  CTR-DUPLICADOS TO CTR-DUPLICADOS-E
+
+                   DISPLAY CTE-GUIONES
+                   DISPLAY 'LEIDOS ENTRADA:         ' CTR-LEIDOS-E
+                   DISPLAY 'INSERTADOS TABLA CURSO: ' CTR-INSERTADOS-E
+                   DISPLAY 'DUPLICADOS:             ' CTR-DUPLICADOS-E
+
+           END-EVALUATE.
+
+           DISPLAY 'FIN DEL PROGRAMA: ' CTE-PROGRAMA.
+           DISPLAY CTE-GUIONES.
+
+       8000-WRAP-UP-EXIT.
+           EXIT.
+
+      ******************************************************************
+      *                       9000-LEER                                *
+      * -------------------------------------------------------------- *
+      * LEE EL REGISTRO DEL FICHERO DE CURSO.                          *
+      ******************************************************************
+       9000-LEER.
+           READ CURSO INTO WS-IN-REG-CURSO
+               AT END
+                   SET END-OF-FILE TO TRUE
+               NOT AT END
+                   ADD CTE-1 TO CTR-LEIDOS
+           END-READ.
+
+       9000-LEER-EXIT.
+           EXIT.
