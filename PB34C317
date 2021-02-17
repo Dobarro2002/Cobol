@@ -1,0 +1,583 @@
+
+      ******************************************************************
+      * NOM. DESCR: ESTE PROGRAMA HACE CRUCE DE FICHEROS 1:N           *
+      * OBJETIVE:   ESTE PROGRAMA LEE FICHERO MAESTRO EMPLEADO Y       *
+      *             SI EXISTE IGUALDAD ENTRE AMBOS CODIGOS DE EMPLEADO *
+      *             SE RECUPERARÁN TODAS LAS SUBIDAS PARA ESE EMPLEADO *
+      *             Y SE INCREMENTARA AL SALARIO DEL MAESTRO.          *
+      *             SI NO EXISTE IGUALDAD Y LA CLAVE DEL MAESTRO ES    *
+      *             MENOR QUE LA CLAVE DE SUBIDAS, SE GRABA TAL COMO   *
+      *             ESTÁ EN EL MAESTRO.                                *
+      *             SI FUERA MAYOR LA CLAVE DEL MAESTRO A LA DE SUBIDA,*
+      *             SE GRABA EN EL DE ERRORES.                         *
+      *             (COPYBOOK:CEMPLEAD)                                *
+      * TYPE:       BATCH/COPY                                         *
+      * INPUTS:     DATOS DEL SISTEMA (FECHA Y HORA)                   *
+      *             MAESTRO DE EMPLEADOS             (PS)              *
+      *                     T9716.T971634.ZENTRADA.EMPLEADO            *
+      *             FICHERO DE SUBIDAS DE SALARIO    (PS)              *
+      *                     T9716.T971634.ZENT317.SUBIDA               *
+      * OUTPUTS:    FICHERO NUEVO MAESTRO            (PS)              *
+      *                     T9716.T971634.ZSAL317.MAEACT               *
+      *             FICHERO ERRORES                  (PS)              *
+      *                     T9716.T971634.ZSAL317.ERRORES              *
+      ******************************************************************
+
+      ******************************************************************
+      *                    IDENTIFICATION DIVISION                     *
+      ******************************************************************
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. PB34C317.
+       AUTHOR. USUARIO (IRIA).
+       DATE-WRITTEN. ENERO, 2021.
+       DATE-COMPILED.
+
+      ******************************************************************
+      *                    ENVIRONMENT DIVISION                        *
+      ******************************************************************
+       ENVIRONMENT DIVISION.
+       CONFIGURATION SECTION.
+
+       SOURCE-COMPUTER. IBM-390.
+       OBJECT-COMPUTER. IBM-390.
+
+       SPECIAL-NAMES.
+           DECIMAL-POINT IS COMMA.
+
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+
+      ******************************************************************
+      *                    INPUT FILE                                  *
+      *----------------------------------------------------------------*
+      * FICHEROS DE ENTRADA DE SUBIDA                                  *
+      ******************************************************************
+           SELECT SUBIDA
+               ASSIGN TO SUBIDA
+               ORGANIZATION IS SEQUENTIAL
+               ACCESS MODE  IS SEQUENTIAL
+               FILE STATUS  IS FS-SUBIDA.
+
+      ******************************************************************
+      *                    INPUT FILE                                  *
+      *----------------------------------------------------------------*
+      * FICHEROS DE ENTRADA DE MAESTRO DE EMPLEADO                     *
+      ******************************************************************
+           SELECT MAESTRO
+               ASSIGN TO MAESTRO
+               ORGANIZATION IS SEQUENTIAL
+               ACCESS MODE IS SEQUENTIAL
+               FILE STATUS IS FS-MAESTRO.
+
+      ******************************************************************
+      *                    OUTPUT FILE                                 *
+      *----------------------------------------------------------------*
+      * FICHERO DE NUEVO MAESTRO ACTUALIZADO                           *
+      ******************************************************************
+           SELECT MAEACT
+               ASSIGN TO MAEACT
+               ORGANIZATION IS SEQUENTIAL
+               ACCESS MODE IS SEQUENTIAL
+               FILE STATUS IS FS-MAEACT.
+
+      ******************************************************************
+      *                    OUTPUT FILE                                 *
+      *----------------------------------------------------------------*
+      * FICHERO DE ERRORES                                             *
+      ******************************************************************
+           SELECT FICERROR
+               ASSIGN TO FICERROR
+               ORGANIZATION IS SEQUENTIAL
+               ACCESS MODE IS SEQUENTIAL
+               FILE STATUS IS FS-FICERROR.
+
+      ******************************************************************
+      *                       DATA DIVISION                            *
+      ******************************************************************
+       DATA DIVISION.
+       FILE SECTION.
+       FD  SUBIDA
+           LABEL RECORDS ARE STANDARD
+           RECORDING MODE IS F
+           BLOCK CONTAINS 0 RECORDS
+           RECORD CONTAINS 100 CHARACTERS
+           DATA RECORD IS REG-SUBIDA.
+       01  REG-SUBIDA                     PIC X(100).
+
+       FD  MAESTRO
+           LABEL RECORDS ARE STANDARD
+           RECORDING MODE IS F
+           BLOCK CONTAINS 0 RECORDS
+           RECORD CONTAINS 100 CHARACTERS
+           DATA RECORD IS REG-MAESTRO.
+       01  REG-MAESTRO                    PIC X(100).
+
+       FD  MAEACT
+           LABEL RECORDS ARE STANDARD
+           RECORDING MODE IS F
+           BLOCK CONTAINS 0 RECORDS
+           RECORD CONTAINS 100 CHARACTERS
+           DATA RECORD IS REG-MAEACT.
+       01  REG-MAEACT                     PIC X(100).
+
+       FD  FICERROR
+           LABEL RECORDS ARE STANDARD
+           RECORDING MODE IS F
+           BLOCK CONTAINS 0 RECORDS
+           RECORD CONTAINS 100 CHARACTERS
+           DATA RECORD IS REG-FICERROR.
+       01  REG-FICERROR                   PIC X(100).
+
+      ******************************************************************
+      *                   WORKING-STORAGE SECTION                      *
+      ******************************************************************
+       WORKING-STORAGE SECTION.
+       01  WORK-AREA.
+
+      ******************************************************************
+      *                   RECORD LAYOUT                                *
+      *----------------------------------------------------------------*
+      *  DESCRIPCION DEL REGISTRO DEL FICHERO DE ENTRADA DE SUBIDA     *
+      ******************************************************************
+           05  WS-IN-REG-SUBIDA.
+               10  WS-IN-CODIGO            PIC X(05)   VALUE SPACES.
+               10  FILLER                  PIC X(49)   VALUE SPACES.
+               10  WS-IN-SALARIO           PIC S9(7)V99 COMP-3
+                                   VALUE ZEROS.
+               10  FILLER                  PIC X(41)   VALUE SPACES.
+
+      ******************************************************************
+      *                   RECORD LAYOUT                                *
+      *----------------------------------------------------------------*
+      *  DESCRIPCION DEL REGISTRO DEL FICHERO DEL MAESTRO DE EMPLEADOS *
+      ******************************************************************
+           05  WS-IN-REG-MAESTRO.
+               10  WS-IN-CODIGO            PIC 9(05)   VALUE ZEROES.
+               10  WS-IN-NOMBRE            PIC X(20)   VALUE SPACES.
+               10  WS-IN-CPOSTAL           PIC 9(05)   VALUE ZEROES.
+               10  WS-IN-CALLE             PIC X(20)   VALUE SPACES.
+               10  WS-IN-DEPAR             PIC 9(04)   VALUE ZEROES.
+               10  WS-IN-SALARIO           PIC S9(7)V99 COMP-3
+                                   VALUE ZEROS.
+               10  FILLER                  PIC X(41)   VALUE SPACES.
+
+      ******************************************************************
+      *                   RECORD LAYOUT                                *
+      *----------------------------------------------------------------*
+      *  DESCRIPCION DEL REGISTRO DEL FICHERO DEL MAESTRO ACTUALIZADO  *
+      ******************************************************************
+           05  WS-OU-REG-MAEACT.
+               10  WS-OU-CODIGO            PIC 9(05)   VALUE ZEROES.
+               10  WS-OU-NOMBRE            PIC X(20)   VALUE SPACES.
+               10  WS-OU-CPOSTAL           PIC 9(05)   VALUE ZEROES.
+               10  WS-OU-CALLE             PIC X(20)   VALUE SPACES.
+               10  WS-OU-DEPAR             PIC 9(04)   VALUE ZEROES.
+               10  WS-OU-SALARIO           PIC S9(7)V99 COMP-3
+                                   VALUE ZEROS.
+               10  FILLER                  PIC X(41)   VALUE SPACES.
+
+      ******************************************************************
+      *                   RECORD LAYOUT                                *
+      *----------------------------------------------------------------*
+      *  DESCRIPCION DEL REGISTRO DEL FICHERO DE ERRORES               *
+      ******************************************************************
+           05  WS-OU-REG-FICERROR.
+               10  WS-OU-CODIGO            PIC X(05)   VALUE SPACES.
+               10  FILLER                  PIC X(49)   VALUE SPACES.
+               10  WS-OU-SALARIO           PIC S9(7)V99 COMP-3
+                                   VALUE ZEROS.
+               10  FILLER                  PIC X(41)   VALUE SPACES.
+
+
+      ******************************************************************
+      *                 FILE STATUS                                    *
+      ******************************************************************
+           05  FS-SUBIDA                    PIC 99      VALUE ZEROS.
+           05  FS-MAESTRO                   PIC 99      VALUE ZEROS.
+           05  FS-MAEACT                    PIC 99      VALUE ZEROS.
+           05  FS-FICERROR                  PIC 99      VALUE ZEROS.
+
+      ******************************************************************
+      *                 FLAGS AND SWITCHES                             *
+      ******************************************************************
+           05  END-OF-SWITCH-MAESTRO       PIC X       VALUE 'N'.
+               88  END-OF-FILE-MAESTRO                 VALUE 'Y'.
+               88  NOT-END-OF-FILE-MAESTRO             VALUE 'N'.
+
+           05  END-OF-SWITCH-SUBIDA        PIC X       VALUE 'N'.
+               88  END-OF-FILE-SUBIDA                  VALUE 'Y'.
+               88  NOT-END-OF-FILE-SUBIDA              VALUE 'N'.
+
+           05  END-FILE-SWITCH-MAESTRO     PIC X       VALUE 'N'.
+               88  EMPTY-FILE-MAESTRO                  VALUE 'Y'.
+
+           05  END-FILE-SWITCH-SUBIDA      PIC X       VALUE 'N'.
+               88  EMPTY-FILE-SUBIDA                   VALUE 'Y'.
+
+           05  ERRORES-SWITCH              PIC X       VALUE 'N'.
+               88 ERRORES                              VALUE 'Y'.
+
+      ******************************************************************
+      *                 COUNTERS AND ACCUMULATORS                      *
+      ******************************************************************
+           05  CTR-LEIDOS-SUBIDA           PIC S9(9) COMP-3
+                                   VALUE ZEROS.
+           05  CTR-LEIDOS-MAESTRO          PIC S9(9) COMP-3
+                                   VALUE ZEROS.
+           05  CTR-MAEACT                  PIC S9(9) COMP-3
+                                   VALUE ZEROS.
+           05  CTR-ERRORES                 PIC S9(9) COMP-3
+                                   VALUE ZEROS.
+           05  CTR-ACTUALIZADOS            PIC S9(9) COMP-3
+                                   VALUE ZEROS.
+
+      ******************************************************************
+      *                 CONSTANTS AND LITERALS                         *
+      ******************************************************************
+           05  CTE-1                       PIC 9       VALUE 1.
+           05  CTE-10                      PIC 99      VALUE 10.
+           05  CTE-1001                    PIC 9(4)    VALUE 1001.
+           05  CTE-GUIONES                 PIC X(70)   VALUE ALL '='.
+           05  CTE-PROGRAMA                PIC X(8)    VALUE 'PB34C317'.
+
+      ******************************************************************
+      *                 SCRATCH AREA                                   *
+      ******************************************************************
+           05  AUX-TITULO                  PIC X(60)    VALUE SPACES.
+           05  AUX-CLAVE-MAESTRO           PIC X(05)    VALUE SPACES.
+           05  AUX-CLAVE-SUBIDA            PIC X(05)    VALUE SPACES.
+           05  SAVE-CODIGO                 PIC X(05)    VALUE SPACES.
+           05  AUX-FECHA.
+               10  AUX-ANYO                PIC 9(4)     VALUE ZERO.
+               10  AUX-MES                 PIC 9(2)     VALUE ZERO.
+               10  AUX-DIA                 PIC 9(2)     VALUE ZERO.
+
+           05  AUX-HOR.
+               10 AUX-HORA                 PIC 9(2)     VALUE ZERO.
+               10 AUX-MINUTO               PIC 9(2)     VALUE ZERO.
+               10 AUX-SEGUNDO              PIC 9(2)     VALUE ZERO.
+               10 AUX-MILI                 PIC 9(2)     VALUE ZERO.
+
+      ******************************************************************
+      *                       PROCEDURE DIVISION                       *
+      ******************************************************************
+       PROCEDURE DIVISION.
+
+      ******************************************************************
+      *                       1000-MAINLINE                            *
+      *----------------------------------------------------------------*
+      * ESTE PARRAFO CONTROLA LA ESTRUCTURA DEL PROCESO DEL PROGRAMA   *
+      ******************************************************************
+       1000-MAINLINE.
+           PERFORM 2000-HOUSEKEEPING
+              THRU 2000-HOUSEKEEPING-EXIT.
+
+           PERFORM 3000-PROCESS
+              THRU 3000-PROCESS-EXIT
+             UNTIL (END-OF-FILE-MAESTRO
+               AND END-OF-FILE-SUBIDA)
+                OR ERRORES.
+
+           PERFORM 8000-WRAP-UP
+              THRU 8000-WRAP-UP-EXIT.
+
+           STOP RUN.
+
+      ******************************************************************
+      *                       2000-HOUSEKEEPING                        *
+      *----------------------------------------------------------------*
+      * ABRE LOS FICHEROS Y LEE SUBIDA Y MAESTRO, CONTROLA SI VACIO    *
+      ******************************************************************
+       2000-HOUSEKEEPING.
+           ACCEPT AUX-FECHA  FROM DATE YYYYMMDD.
+           ACCEPT AUX-HOR    FROM TIME.
+           ACCEPT AUX-TITULO FROM SYSIN.
+
+           DISPLAY  'COMIENZA EL PROGRAMA: ' CTE-PROGRAMA
+               ' FECHA: ' AUX-ANYO '-' AUX-MES '-' AUX-DIA
+               ' HORA: '      AUX-HORA ':' AUX-MINUTO ':' AUX-SEGUNDO
+               ':' AUX-MILI.
+           DISPLAY AUX-TITULO
+           DISPLAY CTE-GUIONES.
+
+           OPEN INPUT SUBIDA
+                      MAESTRO
+               OUTPUT MAEACT
+                      FICERROR.
+
+           IF  FS-SUBIDA NOT EQUAL TO ZEROS
+               DISPLAY 'ERROR AL ABRIR SUBIDA ' FS-SUBIDA
+
+               SET ERRORES TO TRUE
+           END-IF.
+
+           IF  FS-MAESTRO NOT EQUAL TO ZEROS
+               DISPLAY 'ERROR AL ABRIR MAESTRO ' FS-MAESTRO
+
+               SET ERRORES TO TRUE
+           END-IF.
+
+           IF  FS-MAEACT NOT EQUAL TO ZEROS
+               DISPLAY 'ERROR AL ABRIR MAEACT ' FS-MAEACT
+
+               SET ERRORES TO TRUE
+           END-IF.
+
+           IF  FS-FICERROR NOT EQUAL TO ZEROS
+               DISPLAY 'ERROR AL ABRIR FICERROR ' FS-FICERROR
+
+               SET ERRORES TO TRUE
+           END-IF.
+
+           PERFORM 9000-LEER-SUBIDA
+              THRU 9000-LEER-SUBIDA-EXIT.
+
+           PERFORM 9100-LEER-MAESTRO
+              THRU 9100-LEER-MAESTRO-EXIT.
+
+           IF END-OF-FILE-MAESTRO
+              SET EMPTY-FILE-MAESTRO TO TRUE
+              SET ERRORES TO TRUE
+           END-IF.
+
+           IF END-OF-FILE-SUBIDA
+              SET EMPTY-FILE-SUBIDA TO TRUE
+              SET ERRORES TO TRUE
+           END-IF.
+
+       2000-HOUSEKEEPING-EXIT.
+           EXIT.
+
+      ******************************************************************
+      *                       3000-PROCESS                             *
+      *----------------------------------------------------------------*
+      *  ESTE PARRAFO COMPARA CLAVES (CODIGO) PARA DETERMINAR ACCION.  *
+      ******************************************************************
+       3000-PROCESS.
+           EVALUATE TRUE
+               WHEN AUX-CLAVE-MAESTRO EQUAL TO AUX-CLAVE-SUBIDA
+                   PERFORM 3100-ACTUALIZAR
+                      THRU 3100-ACTUALIZAR-EXIT
+
+               WHEN AUX-CLAVE-MAESTRO LESS THAN AUX-CLAVE-SUBIDA
+                   PERFORM 3200-MANTENER
+                      THRU 3200-MANTENER-EXIT
+
+               WHEN AUX-CLAVE-MAESTRO GREATER THAN AUX-CLAVE-SUBIDA
+                   PERFORM 3300-ERROR
+                      THRU 3300-ERROR-EXIT
+
+           END-EVALUATE.
+
+       3000-PROCESS-EXIT.
+           EXIT.
+
+      ******************************************************************
+      *                       3100-ACTUALIZAR                          *
+      *----------------------------------------------------------------*
+      * AQUI SE ACTUALIZA EL SALARIO CON LA SUBIDA. SE ESCRIBE EN EL   *
+      * DE MAEACT CON EL CAMBIO Y SE LEE DE MAESTRO.                   *
+      ******************************************************************
+       3100-ACTUALIZAR.
+           MOVE AUX-CLAVE-SUBIDA TO SAVE-CODIGO.
+           MOVE WS-IN-REG-MAESTRO TO WS-OU-REG-MAEACT.
+
+           PERFORM 3110-INCREMENTAR-SUBIDA
+              THRU 3110-INCREMENTAR-SUBIDA-EXIT
+             UNTIL (AUX-CLAVE-SUBIDA IS NOT EQUAL TO
+                   AUX-CLAVE-MAESTRO)
+                OR END-OF-FILE-SUBIDA
+                OR ERRORES.
+
+           WRITE REG-MAEACT FROM WS-OU-REG-MAEACT.
+
+           IF  FS-MAEACT EQUAL TO ZEROS
+               ADD CTE-1 TO CTR-MAEACT
+                            CTR-ACTUALIZADOS
+
+           ELSE
+               DISPLAY 'ERROR AL GRABAR MAEACT. FS= ' FS-MAEACT
+
+               SET ERRORES TO TRUE
+           END-IF.
+
+           PERFORM 9100-LEER-MAESTRO
+              THRU 9100-LEER-MAESTRO-EXIT.
+
+        3100-ACTUALIZAR-EXIT.
+             EXIT.
+
+      ******************************************************************
+      *                       3110-INCREMENTAR-SUBIDA                  *
+      *----------------------------------------------------------------*
+      * AQUI SE INCREMENTA EL SALARIO CON LA SUBIDA. SE ESCRIBE EN EL  *
+      * DE MAEACT CON EL CAMBIO Y SE LEE DE SUBIDA.                    *
+      ******************************************************************
+       3110-INCREMENTAR-SUBIDA.
+           ADD WS-IN-SALARIO OF WS-IN-REG-SUBIDA TO
+               WS-OU-SALARIO OF WS-OU-REG-MAEACT.
+
+           PERFORM 9000-LEER-SUBIDA
+              THRU 9000-LEER-SUBIDA-EXIT.
+
+       3110-INCREMENTAR-SUBIDA-EXIT.
+           EXIT.
+
+      ******************************************************************
+      *                       3200-MANTENER                            *
+      *----------------------------------------------------------------*
+      * GRABA EL REGISTRO EN MAEACT CON EL MISMO SALARIO Y LEE MAESTRO *
+      ******************************************************************
+       3200-MANTENER.
+           MOVE WS-IN-REG-MAESTRO TO WS-OU-REG-MAEACT.
+
+           WRITE REG-MAEACT FROM WS-OU-REG-MAEACT.
+
+           IF  FS-MAEACT EQUAL TO ZEROS
+               ADD CTE-1 TO CTR-MAEACT
+
+           ELSE
+               DISPLAY 'ERROR AL GRABAR MAEACT ' FS-MAEACT
+
+               SET ERRORES TO TRUE
+            END-IF.
+
+            PERFORM 9100-LEER-MAESTRO
+               THRU 9100-LEER-MAESTRO-EXIT.
+
+        3200-MANTENER-EXIT.
+             EXIT.
+
+      ******************************************************************
+      *                       3300-ERRORESR                            *
+      *----------------------------------------------------------------*
+      * GRABA EL REGISTRO EN ERRORES CON DATOS SUBIDA Y LEE SUBIDA     *
+      ******************************************************************
+       3300-ERROR.
+           MOVE WS-IN-REG-SUBIDA TO WS-OU-REG-FICERROR.
+
+           WRITE REG-FICERROR FROM WS-OU-REG-FICERROR.
+
+           IF  FS-FICERROR EQUAL TO ZEROS
+               ADD CTE-1 TO CTR-ERRORES
+
+           ELSE
+               DISPLAY 'ERROR AL GRABAR FIC-ERRORES. FS= ' FS-FICERROR
+
+               SET ERRORES TO TRUE
+            END-IF.
+
+            PERFORM 9000-LEER-SUBIDA
+               THRU 9000-LEER-SUBIDA-EXIT.
+
+        3300-ERROR-EXIT.
+             EXIT.
+
+      ******************************************************************
+      *                       8000-WRAP-UP                             *
+      *----------------------------------------------------------------*
+      * ESTE PROCESO CONTROLA VACIO/ERRORES, CIERRA FICHERO Y          *
+      * MUESTRA CONTADORES.                                            *
+      ******************************************************************
+       8000-WRAP-UP.
+           EVALUATE TRUE
+               WHEN EMPTY-FILE-MAESTRO AND EMPTY-FILE-SUBIDA
+                   DISPLAY 'FICHERO MAESTRO Y FICHERO SUBIDA VACIOS.'
+
+                   MOVE CTE-1001 TO RETURN-CODE
+
+               WHEN EMPTY-FILE-MAESTRO
+                   DISPLAY 'FICHERO MAESTRO VACIO'
+
+                   MOVE CTE-1001 TO RETURN-CODE
+
+               WHEN EMPTY-FILE-SUBIDA
+                   DISPLAY 'FICHERO SUBIDA VACIO.'
+
+                   MOVE CTE-1001 TO RETURN-CODE
+
+              WHEN ERRORES
+                  DISPLAY '//=======================//'
+                  DISPLAY '//-----------------------//'
+                  DISPLAY '// EJECUCION NO CORRECTA //'
+                  DISPLAY '//-----------------------//'
+                  DISPLAY '//=======================//'
+
+                  MOVE CTE-1001 TO RETURN-CODE
+
+              WHEN OTHER
+                  CLOSE SUBIDA
+                        MAESTRO
+                        MAEACT
+                        FICERROR
+           END-EVALUATE.
+
+           DISPLAY CTE-GUIONES.
+           DISPLAY 'LEIDOS SUBIDA     : ' CTR-LEIDOS-SUBIDA.
+           DISPLAY 'LEIDOS MAESTRO    : ' CTR-LEIDOS-MAESTRO.
+           DISPLAY 'GRABADOS MAEACT   : ' CTR-MAEACT.
+           DISPLAY 'ACTUALIZADOS      : ' CTR-ACTUALIZADOS.
+           DISPLAY 'GRABADOS ERRORES  : ' CTR-ERRORES
+           DISPLAY 'FIN DE PROGRAMA.    ' CTE-PROGRAMA.
+           DISPLAY CTE-GUIONES.
+
+       8000-WRAP-UP-EXIT.
+           EXIT.
+
+      ******************************************************************
+      *                       9000-LEER-SUBIDA                         *
+      *----------------------------------------------------------------*
+      * LECTURA DE FICHERO SUBIDA. CONTROL DE EOF Y HIGH-VALUES.       *
+      ******************************************************************
+       9000-LEER-SUBIDA.
+           READ SUBIDA INTO WS-IN-REG-SUBIDA.
+
+           EVALUATE FS-SUBIDA
+               WHEN ZEROS
+                   ADD CTE-1 TO CTR-LEIDOS-SUBIDA
+
+                   MOVE WS-IN-CODIGO OF WS-IN-REG-SUBIDA
+                     TO AUX-CLAVE-SUBIDA
+
+               WHEN CTE-10
+                   SET END-OF-FILE-SUBIDA TO TRUE
+
+                   MOVE HIGH-VALUES TO AUX-CLAVE-SUBIDA
+
+               WHEN OTHER
+                   DISPLAY 'ERROR AL LEER SUBIDA ' FS-SUBIDA
+
+                   SET ERRORES TO TRUE
+           END-EVALUATE.
+
+       9000-LEER-SUBIDA-EXIT.
+           EXIT.
+
+      ******************************************************************
+      *                       9100-LEER-MAESTRO                        *
+      *----------------------------------------------------------------*
+      * LECTURA DE FICHERO MAESTRO. CONTROL DE EOF Y HIGH-VALUES.      *
+      ******************************************************************
+       9100-LEER-MAESTRO.
+           READ MAESTRO INTO WS-IN-REG-MAESTRO.
+
+           EVALUATE FS-MAESTRO
+               WHEN ZEROS
+                   ADD CTE-1 TO CTR-LEIDOS-MAESTRO
+
+                   MOVE WS-IN-CODIGO OF WS-IN-REG-MAESTRO
+                     TO AUX-CLAVE-MAESTRO
+
+               WHEN CTE-10
+                   SET END-OF-FILE-MAESTRO TO TRUE
+
+                   MOVE HIGH-VALUES TO AUX-CLAVE-MAESTRO
+
+               WHEN OTHER
+                   DISPLAY 'ERROR AL LEER MAESTRO ' FS-MAESTRO
+
+                   SET ERRORES TO TRUE
+           END-EVALUATE.
+
+       9100-LEER-MAESTRO-EXIT.
+           EXIT.
