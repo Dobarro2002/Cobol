@@ -1,0 +1,336 @@
+
+      ******************************************************************
+      * NOM. DESCR: ESTE PROGRAMA PROCESA EL FICH.SECUENCIAL -CUENTO-  *
+      * OBJETIVE:   ESTE PROGRAMA LEE EL FICHERO DE CUENTO Y GENERA    *
+      *             FICHERO DE SALIDA CON TODOS LOS DATOS + UN CAMPO   *
+      *             NUEVO LLAMADO WS-OU-TOTAL (NUMERICO EMPAQUETADO DE *
+      *             5 ENTEROS Y TRES DECIMALES CON SIGNO -COMP3-)      *
+      *             DONDE SE GUARDARA EL RESULTADO DE:                 *
+      *             WS-OU-TOTAL = UNIDADES VENDIDAS * PRECIO UNITARIO. *
+      * TYPE:       BATCH REPORT                                       *
+      * INPUTS:     DATOS DEL SISTEMA (FECHA Y HORA)                   *
+      *             DATOS DE SYSIN    (TITULO)                         *
+      *             FICHERO DE ENTRADA SECUENCIAL -CUENTO.:            *
+      *                   T9716.T971634.ZENT207.CUENTO                 *
+      * OUTPUTS:    FICHERO DE SALIDA SECUENCIAL -CUENTO.:             *
+      *                   T9716.T971634.ZSAL208.CUENTO                 *
+      ******************************************************************
+
+
+
+      ******************************************************************
+      *                    IDENTIFICATION DIVISION                     *
+      ******************************************************************
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. PB34C208.
+       AUTHOR. USUARIO (IRIA).
+       DATE-WRITTEN. ENERO, 2021.
+       DATE-COMPILED.
+
+      ******************************************************************
+      *                    ENVIRONMENT DIVISION                        *
+      ******************************************************************
+       ENVIRONMENT DIVISION.
+       CONFIGURATION SECTION.
+
+       SOURCE-COMPUTER. IBM-390.
+       OBJECT-COMPUTER. IBM-390.
+
+       SPECIAL-NAMES.
+           DECIMAL-POINT IS COMMA.
+
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+
+      ******************************************************************
+      *                    INPUT FILE                                  *
+      *----------------------------------------------------------------*
+      * FICHERO DE CUENTO                                              *
+      ******************************************************************
+           SELECT CUENTO
+               ASSIGN TO FICHENTR
+               ORGANIZATION IS SEQUENTIAL
+               ACCESS MODE IS SEQUENTIAL
+               FILE STATUS IS FS-CUENTO.
+
+      ******************************************************************
+      *                    OUTPUT FILE                                 *
+      *----------------------------------------------------------------*
+      * FICHERO DE CUENTO DE SALIDA CON MAS CAMPOS (TOTAL)             *
+      ******************************************************************
+           SELECT SALIDA
+               ASSIGN TO SALJCL
+               ORGANIZATION IS SEQUENTIAL
+               ACCESS MODE IS SEQUENTIAL
+               FILE STATUS IS FS-SALIDA.
+      ******************************************************************
+      *                       DATA DIVISION                            *
+      ******************************************************************
+       DATA DIVISION.
+       FILE SECTION.
+       FD  CUENTO
+           LABEL RECORDS ARE STANDARD
+           RECORDING MODE IS F
+           BLOCK CONTAINS 0 RECORDS
+           RECORD CONTAINS 60 CHARACTERS
+           DATA RECORD IS REG-CUENTO.
+       01  REG-CUENTO                     PIC X(60).
+
+       FD  SALIDA
+           LABEL RECORDS ARE STANDARD
+           RECORDING MODE IS F
+           BLOCK CONTAINS 0 RECORDS
+           RECORD CONTAINS 60 CHARACTERS
+           DATA RECORD IS REG-SALIDA.
+       01  REG-SALIDA                     PIC X(60).
+      ******************************************************************
+      *                   WORKING-STORAGE SECTION                      *
+      ******************************************************************
+       WORKING-STORAGE SECTION.
+       01  WORK-AREA.
+
+      ******************************************************************
+      *                   RECORD LAYOUT                                *
+      *----------------------------------------------------------------*
+      *  DESCRIPCION DEL REGISTRO DEL FICHERO DE CUENTO.    LONG.:60   *
+      ******************************************************************
+           05  WS-IN-REG-CUENTO.
+               10  WS-IN-ISBN              PIC X(10)   VALUE SPACES.
+               10  WS-IN-TITULO            PIC X(20)   VALUE SPACES.
+               10  WS-IN-EDITORIAL         PIC X(13)   VALUE SPACES.
+               10  WS-IN-PRECIO            PIC 9(4)    VALUE ZEROES.
+               10  FILLER                  PIC X       VALUE SPACES.
+               10  WS-IN-CODEDI            PIC 9(2)    VALUE ZEROES.
+               10  FILLER                  PIC X       VALUE SPACES.
+               10  WS-IN-UNID-VENDIDAS     PIC 9(3)    VALUE ZEROES.
+               10  FILLER                  PIC X(6)    VALUE SPACES.
+
+      ******************************************************************
+      *                   RECORD LAYOUT                                *
+      *----------------------------------------------------------------*
+      *  DESCRIPCION DEL REGISTRO DEL FICHERO DE SALIDA.    LONG.:60   *
+      ******************************************************************
+           05  WS-OU-REG-SALIDA.
+               10  WS-OU-ISBN              PIC X(10)   VALUE SPACES.
+               10  WS-OU-TITULO            PIC X(20)   VALUE SPACES.
+               10  WS-OU-EDITORIAL         PIC X(13)   VALUE SPACES.
+               10  WS-OU-PRECIO            PIC 9(4)    VALUE ZEROES.
+               10  FILLER                  PIC X       VALUE SPACES.
+               10  WS-OU-CODEDI            PIC 9(2)    VALUE ZEROES.
+               10  FILLER                  PIC X       VALUE SPACES.
+               10  WS-OU-UNID-VENDIDAS     PIC 9(3)    VALUE ZEROES.
+               10  WS-OU-TOTAL             PIC S9(5)V9(2) COMP-3
+                                       VALUE ZEROES.
+               10  FILLER                  PIC X(2)   VALUE SPACES.
+      ******************************************************************
+      *                 FILE STATUS                                    *
+      ******************************************************************
+           05  FS-CUENTO                    PIC 99      VALUE ZEROS.
+           05  FS-SALIDA                    PIC 99      VALUE ZEROS.
+
+      ******************************************************************
+      *                 FLAGS AND SWITCHES                             *
+      ******************************************************************
+           05  END-OF-SWITCH               PIC X       VALUE 'N'.
+               88  END-OF-FILE                         VALUE 'Y'.
+               88  NOT-END-OF-FILE                     VALUE 'N'.
+
+           05  END-FILE-SWITCH             PIC X       VALUE 'N'.
+               88  EMPTY-FILE                          VALUE 'Y'.
+
+           05  ERRORES-SWITCH              PIC X       VALUE 'N'.
+               88 ERRORES                              VALUE 'Y'.
+
+      ******************************************************************
+      *                 COUNTERS AND ACCUMULATORS                      *
+      ******************************************************************
+           05  CTR-LEIDOS                  PIC S9(9) COMP-3
+                                   VALUE ZEROS.
+           05  CTR-GRABADOS                PIC S9(9) COMP-3
+                                   VALUE ZEROS.
+
+      ******************************************************************
+      *                 CONSTANTS AND LITERALS                         *
+      ******************************************************************
+           05  CTE-1                       PIC 9       VALUE 1.
+           05  CTE-1001                    PIC 9(4)    VALUE 1001.
+           05  CTE-PROGRAMA                PIC X(8)    VALUE 'PB34C208'.
+           05  CTE-GUIONES                 PIC X(70)   VALUE ALL '='.
+
+      ******************************************************************
+      *                 SCRATCH AREA                                   *
+      ******************************************************************
+           05  AUX-SYSIN.
+               10 AUX-TITULO               PIC X(40)    VALUE SPACES.
+               10 AUX-RESTO                PIC X(40)    VALUE SPACES.
+           05  AUX-FECHA.
+               10  AUX-ANYO                PIC 9(4)     VALUE ZERO.
+               10  AUX-MES                 PIC 9(2)     VALUE ZERO.
+               10  AUX-DIA                 PIC 9(2)     VALUE ZERO.
+
+           05  AUX-HOR.
+               10 AUX-HORA                 PIC 9(2)     VALUE ZERO.
+               10 AUX-MINUTO               PIC 9(2)     VALUE ZERO.
+               10 AUX-SEGUNDO              PIC 9(2)     VALUE ZERO.
+               10 AUX-MILI                 PIC 9(2)     VALUE ZERO.
+
+           05  AUX-RES                     PIC 9(6)     VALUE ZERO.
+
+      ******************************************************************
+      *                       PROCEDURE DIVISION                       *
+      ******************************************************************
+       PROCEDURE DIVISION.
+
+      ******************************************************************
+      *                       1000-MAINLINE                            *
+      *----------------------------------------------------------------*
+      * ESTE PARRAFO CONTROLA LA ESTRUCTURA DEL PROCESO DEL PROGRAMA   *
+      ******************************************************************
+       1000-MAINLINE.
+           PERFORM 2000-HOUSEKEEPING
+              THRU 2000-HOUSEKEEPING-EXIT.
+
+           PERFORM 3000-PROCESS
+              THRU 3000-PROCESS-EXIT
+             UNTIL END-OF-FILE
+                OR ERRORES.
+
+           PERFORM 8000-WRAP-UP
+              THRU 8000-WRAP-UP-EXIT.
+
+           STOP RUN.
+
+      ******************************************************************
+      *                       2000-HOUSEKEEPING                        *
+      *----------------------------------------------------------------*
+      *  ABRE EL FICHERO, LEE FICHERO Y CONTROLA ERRORES SI ESTA VACIO *
+      ******************************************************************
+       2000-HOUSEKEEPING.
+           ACCEPT AUX-FECHA  FROM DATE YYYYMMDD.
+           ACCEPT AUX-HOR    FROM TIME.
+           ACCEPT AUX-TITULO FROM SYSIN.
+
+           DISPLAY  'COMIENZA EL PROGRAMA: ' CTE-PROGRAMA
+               ' FECHA: ' AUX-ANYO '-' AUX-MES '-' AUX-DIA
+               ' HORA: '      AUX-HORA ':' AUX-MINUTO ':' AUX-SEGUNDO
+               ':' AUX-MILI.
+           DISPLAY AUX-TITULO.
+           DISPLAY CTE-GUIONES.
+
+           SET NOT-END-OF-FILE TO TRUE.
+      *    MOVE 'N'  TO END-OF-SWITCH.
+
+           OPEN INPUT CUENTO
+               OUTPUT SALIDA.
+
+           IF  FS-CUENTO NOT EQUAL TO ZEROS
+           DISPLAY 'ERROR AL ABRIR CUENTO ' FS-CUENTO
+
+               SET ERRORES TO TRUE
+           END-IF.
+
+           IF  FS-SALIDA NOT EQUAL TO ZEROS
+           DISPLAY 'ERROR AL ABRIR SALIDA ' FS-SALIDA
+
+               SET ERRORES TO TRUE
+           END-IF.
+           PERFORM 9000-LEER
+              THRU 9000-LEER-EXIT.
+
+           IF END-OF-FILE
+              SET EMPTY-FILE TO TRUE
+           END-IF.
+
+       2000-HOUSEKEEPING-EXIT.
+           EXIT.
+
+      ******************************************************************
+      *                       3000-PROCESS                             *
+      *----------------------------------------------------------------*
+      *  ESTE PROCESO CALCULA EL TOTAL DE MULTIPLICANDO PRECIO POR     *
+      *  UNIDADES VENIDAS. ESCRIBE FICHERO SALIDA. CONTROLA ERROR AL   *
+      *  ESCRIBIR Y VUELVE A LEER OTRO REG-CUENTO                      *
+      ******************************************************************
+       3000-PROCESS.
+           PERFORM 3100-CALCULAR-TOTAL
+              THRU 3100-CALCULAR-TOTAL-EXIT.
+
+           WRITE REG-SALIDA FROM WS-OU-REG-SALIDA.
+
+           IF FS-SALIDA EQUAL TO ZEROS
+              ADD CTE-1 TO CTR-GRABADOS
+
+           ELSE
+               DISPLAY 'ERROR AL GRABAR SALIDA ' FS-SALIDA
+
+               SET ERRORES TO TRUE
+           END-IF.
+
+           PERFORM 9000-LEER
+              THRU 9000-LEER-EXIT.
+
+       3000-PROCESS-EXIT.
+           EXIT.
+
+      ******************************************************************
+      *                       3100-CALCULAR-TOTAL                      *
+      *----------------------------------------------------------------*
+      * ESTE PARRAFO CALCULA EL TOTAL Y LO ASIGNA EN EL REGISTRO DE    *
+      * SALIDA                                                         *
+      ******************************************************************
+       3100-CALCULAR-TOTAL.
+           MOVE WS-IN-REG-CUENTO TO WS-OU-REG-SALIDA.
+
+           MULTIPLY WS-IN-PRECIO BY WS-IN-UNID-VENDIDAS GIVING AUX-RES.
+           MOVE AUX-RES TO WS-OU-TOTAL.
+
+       3100-CALCULAR-TOTAL-EXIT.
+            EXIT.
+
+      ******************************************************************
+      *                       8000-WRAP-UP                             *
+      *----------------------------------------------------------------*
+      * ESTE PROCESO CONTROLA VACIO/ERRORES, CIERRA FICHERO Y          *
+      * MUESTRA CONTADORES                                             *
+      ******************************************************************
+       8000-WRAP-UP.
+           IF  EMPTY-FILE THEN
+           DISPLAY 'FICHERO CUENTO VACIO.'
+
+           ELSE
+               IF ERRORES THEN
+           DISPLAY '///////////////////////////'
+           DISPLAY '// EJECUCION NO CORRECTA //'
+           DISPLAY '///////////////////////////'
+
+                  MOVE CTE-1001 TO RETURN-CODE
+
+              ELSE
+                  CLOSE CUENTO
+                        SALIDA
+              END-IF
+           END-IF.
+
+           DISPLAY CTE-GUIONES.
+           DISPLAY 'CUENTOS LEIDOS: ' CTR-LEIDOS.
+           DISPLAY 'GRABADOS SALIDA: ' CTR-GRABADOS.
+           DISPLAY 'FIN DE PROGRAMA: ' CTE-PROGRAMA.
+
+       8000-WRAP-UP-EXIT.
+           EXIT.
+
+      ******************************************************************
+      *                       9000-LEER                                *
+      * -------------------------------------------------------------- *
+      * LEE EL REGISTRO DEL FICHERO DE CUENTO.                         *
+      ******************************************************************
+       9000-LEER.
+           READ CUENTO INTO WS-IN-REG-CUENTO
+               AT END
+                   SET END-OF-FILE TO TRUE
+               NOT AT END
+                   ADD CTE-1 TO CTR-LEIDOS
+           END-READ.
+
+       9000-LEER-EXIT.
+           EXIT.
