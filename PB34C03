@@ -1,0 +1,140 @@
+
+      ******************************************************************
+      * NOM. DESCR: ESTE PROGRAMA ESCRIBE LA TABLA DE MULTIPLICAR      *
+      * OBJETIVE:   ESTE PROGRAMA LEE UN NUMERO DE LA SYSIN Y PROCEDE A*
+      *             REALIZAR LA TABLA DE MULTIPLICAR DEL NUMERO LEIDO  *
+      * TYPE:       BATCH                                              *
+      * INPUTS:     DATOS DEL SISTEMA (FECHA Y HORA)                   *
+      *             DATOS DE SYSIN (TITULO DEL LISTADO Y NUMERO)       *
+      * OUTPUTS:    REPORTS-SPOOL-                                     *
+      ******************************************************************
+
+      ******************************************************************
+      *                    IDENTIFICATION DIVISION                     *
+      ******************************************************************
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. PB34C03.
+       AUTHOR. USUARIO (IRIA).
+       DATE-WRITTEN. ENERO, 2021.
+       DATE-COMPILED.
+
+      ******************************************************************
+      *                    ENVIRONMENT DIVISION                        *
+      ******************************************************************
+       ENVIRONMENT DIVISION.
+       CONFIGURATION SECTION.
+
+       SOURCE-COMPUTER. IBM-390.
+       OBJECT-COMPUTER. IBM-390.
+
+       SPECIAL-NAMES.
+           DECIMAL-POINT IS COMMA.
+
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+
+      ******************************************************************
+      *                       DATA DIVISION                            *
+      ******************************************************************
+       DATA DIVISION.
+       FILE SECTION.
+
+      ******************************************************************
+      *                   WORKING-STORAGE SECTION                      *
+      ******************************************************************
+       WORKING-STORAGE SECTION.
+       01  WORK-AREA.
+
+      ******************************************************************
+      *                 SCRATCH AREA                                   *
+      ******************************************************************
+
+           05  CTE-PROGRAMA                PIC X(7)     VALUE 'PB34C03'.
+
+           05  CTE-10                      PIC 99       VALUE 10.
+
+           05  AUX-INDICE                  PIC 99       VALUE ZERO.
+
+           05  AUX-RESULTADO               PIC 9(3)     VALUE ZERO.
+
+           05  AUX-SYSIN.
+               10  AUX-TABLA               PIC 99       VALUE ZERO.
+               10  FILLER                  PIC X(78)    VALUE SPACES.
+
+           05  AUX-FECHA.
+               10  AUX-ANYO                PIC 9(4)     VALUE ZERO.
+               10  AUX-MES                 PIC 9(2)     VALUE ZERO.
+               10  AUX-DIA                 PIC 9(2)     VALUE ZERO.
+
+           05  AUX-HOR.
+               10 AUX-HORA                 PIC 9(2)     VALUE ZERO.
+               10 AUX-MINUTO               PIC 9(2)     VALUE ZERO.
+               10 AUX-SEGUNDO              PIC 9(2)     VALUE ZERO.
+               10 AUX-MILI                 PIC 9(2)     VALUE ZERO.
+
+      ******************************************************************
+      *                       PROCEDURE DIVISION                       *
+      ******************************************************************
+       PROCEDURE DIVISION.
+
+      ******************************************************************
+      *                       1000-MAINLINE                            *
+      *----------------------------------------------------------------*
+      * ESTE PARRAFO CONTROLA LA ESTRUCTURA DEL PROCESO DEL PROGRAMA   *
+      ******************************************************************
+       1000-MAINLINE.
+           PERFORM 2000-HOUSEKEEPING
+              THRU 2000-HOUSEKEEPING-EXIT.
+
+           PERFORM 3000-PROCESS
+              THRU 3000-PROCESS-EXIT.
+
+           PERFORM 8000-WRAP-UP
+              THRU 8000-WRAP-UP-EXIT.
+
+           STOP RUN.
+
+      ******************************************************************
+      *                       2000-HOUSEKEEPING                        *
+      ******************************************************************
+       2000-HOUSEKEEPING.
+           ACCEPT AUX-FECHA  FROM DATE YYYYMMDD.
+           ACCEPT AUX-HOR    FROM TIME.
+           ACCEPT AUX-TABLA  FROM SYSIN.
+
+           DISPLAY  'COMIENZA EL PROGRAMA: ' CTE-PROGRAMA
+               ' FECHA: ' AUX-ANYO '-' AUX-MES '-' AUX-DIA
+               ' HORA: '      AUX-HORA ':' AUX-MINUTO ':' AUX-SEGUNDO
+               ':' AUX-MILI.
+           DISPLAY '------------------------------------------------'.
+           DISPLAY 'TABLA DE MULTIPLICAR DEL ' AUX-TABLA.
+           DISPLAY '------------------------------------------------'.
+
+       2000-HOUSEKEEPING-EXIT.
+           EXIT.
+
+      ******************************************************************
+      *                       3000-PROCESS                             *
+      *----------------------------------------------------------------*
+      *ESTE PROCESO REALIZA LA TABLA DE MULTIPLICAR DEL NUMERO DE SYSIN*
+      ******************************************************************
+       3000-PROCESS.
+           PERFORM VARYING AUX-INDICE FROM 1 BY 1 UNTIL AUX-INDICE > 10
+              MULTIPLY AUX-TABLA BY AUX-INDICE GIVING AUX-RESULTADO
+              DISPLAY AUX-TABLA ' X ' AUX-INDICE ' = ' AUX-RESULTADO
+           END-PERFORM.
+
+       3000-PROCESS-EXIT.
+           EXIT.
+
+      ******************************************************************
+      *                       8000-WRAP-UP                             *
+      *----------------------------------------------------------------*
+      * ESTE PROCESO FINALIZA EL PROGRAMA                              *
+      ******************************************************************
+       8000-WRAP-UP.
+           DISPLAY 'FIN TABLA DE MULTIPLICAR DEL ' AUX-TABLA.
+           DISPLAY '----------------------------------'.
+
+       8000-WRAP-UP-EXIT.
+           EXIT.
